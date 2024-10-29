@@ -13,20 +13,21 @@ import {
   handleClickSegment,
 } from "oxalis/controller/combinations/segmentation_handlers";
 import {
+  computeQuickSelectForPointAction,
   computeQuickSelectForRectAction,
   confirmQuickSelectAction,
   hideBrushAction,
-  maybePrefetchEmbeddingAction,
 } from "oxalis/model/actions/volumetracing_actions";
 import { isBrushTool } from "oxalis/model/accessors/tool_accessor";
 import getSceneController from "oxalis/controller/scene_controller_provider";
 import { finishedResizingUserBoundingBoxAction } from "oxalis/model/actions/annotation_actions";
 import * as MoveHandlers from "oxalis/controller/combinations/move_handlers";
-import PlaneView from "oxalis/view/plane_view";
+import type PlaneView from "oxalis/view/plane_view";
 import * as SkeletonHandlers from "oxalis/controller/combinations/skeleton_handlers";
 import {
   createBoundingBoxAndGetEdges,
-  SelectedEdge,
+  handleMovingBoundingBox,
+  type SelectedEdge,
 } from "oxalis/controller/combinations/bounding_box_handlers";
 import {
   getClosestHoveredBoundingBox,
@@ -50,8 +51,10 @@ import {
   setQuickSelectStateAction,
   setLastMeasuredPositionAction,
   setIsMeasuringAction,
+  setActiveUserBoundingBoxId,
 } from "oxalis/model/actions/ui_actions";
-import ArbitraryView from "oxalis/view/arbitrary_view";
+import type ArbitraryView from "oxalis/view/arbitrary_view";
+import features from "features";
 
 export type ActionDescriptor = {
   leftClick?: string;
@@ -126,8 +129,12 @@ export class MoveTool {
           if (SkeletonHandlers.handleSelectNode(planeView, pos, plane, isTouch)) {
             return;
           }
+          const clickedEdge = getClosestHoveredBoundingBox(pos, planeId);
+          if (clickedEdge) {
+            Store.dispatch(setActiveUserBoundingBoxId(clickedEdge[0].boxId));
+            return;
+          }
         }
-
         handleClickSegment(pos);
       },
       middleClick: (pos: Point2, _plane: OrthoView, event: MouseEvent) => {
@@ -139,7 +146,18 @@ export class MoveTool {
         MoveHandlers.setMousePosition(center);
         MoveHandlers.zoom(delta, true);
       },
-      mouseMove: MoveHandlers.moveWhenAltIsPressed,
+      mouseMove: (delta: Point2, position: Point2, _id: any, event: MouseEvent) => {
+        MoveHandlers.moveWhenAltIsPressed(delta, position, _id, event);
+        if (planeId !== OrthoViews.TDView) {
+          const hoveredEdgesInfo = getClosestHoveredBoundingBox(position, planeId);
+          if (hoveredEdgesInfo) {
+            const [primaryEdge] = hoveredEdgesInfo;
+            getSceneController().highlightUserBoundingBox(primaryEdge.boxId);
+          } else {
+            getSceneController().highlightUserBoundingBox(null);
+          }
+        }
+      },
       out: () => {
         MoveHandlers.setMousePosition(null);
       },
@@ -203,7 +221,7 @@ export class SkeletonTool {
       if (event.shiftKey) {
         SkeletonHandlers.handleOpenContextMenu(planeView, position, plane, isTouch, event);
       } else {
-        SkeletonHandlers.handleCreateNode(position, event.ctrlKey || event.metaKey);
+        SkeletonHandlers.handleCreateNodeFromEvent(position, event.ctrlKey || event.metaKey);
       }
     };
 
@@ -304,7 +322,7 @@ export class SkeletonTool {
 
     if (allowNodeCreation && !didSelectNode && !useLegacyBindings && !shiftPressed) {
       // Will only have an effect, when not in 3D viewport
-      SkeletonHandlers.handleCreateNode(position, ctrlPressed);
+      SkeletonHandlers.handleCreateNodeFromEvent(position, ctrlPressed);
     }
   }
 
@@ -561,12 +579,16 @@ export class BoundingBoxTool {
         delta: Point2,
         pos: Point2,
         _id: string | null | undefined,
-        _event: MouseEvent,
+        event: MouseEvent,
       ) => {
-        if (primarySelectedEdge != null) {
-          handleResizingBoundingBox(pos, planeId, primarySelectedEdge, secondarySelectedEdge);
-        } else {
+        if (primarySelectedEdge == null) {
           MoveHandlers.handleMovePlane(delta);
+          return;
+        }
+        if (event.ctrlKey || event.metaKey) {
+          handleMovingBoundingBox(delta, planeId, primarySelectedEdge);
+        } else {
+          handleResizingBoundingBox(pos, planeId, primarySelectedEdge, secondarySelectedEdge);
         }
       },
       leftMouseDown: (pos: Point2, _plane: OrthoView, _event: MouseEvent) => {
@@ -596,7 +618,13 @@ export class BoundingBoxTool {
       mouseMove: (delta: Point2, position: Point2, _id: any, event: MouseEvent) => {
         if (primarySelectedEdge == null && planeId !== OrthoViews.TDView) {
           MoveHandlers.moveWhenAltIsPressed(delta, position, _id, event);
-          highlightAndSetCursorOnHoveredBoundingBox(position, planeId);
+          highlightAndSetCursorOnHoveredBoundingBox(position, planeId, event);
+        }
+      },
+      leftClick: (pos: Point2, _plane: OrthoView, _event: MouseEvent) => {
+        const currentlyHoveredEdge = getClosestHoveredBoundingBox(pos, planeId);
+        if (currentlyHoveredEdge) {
+          Store.dispatch(setActiveUserBoundingBoxId(currentlyHoveredEdge[0].boxId));
         }
       },
       rightClick: (pos: Point2, plane: OrthoView, event: MouseEvent, isTouch: boolean) => {
@@ -609,12 +637,12 @@ export class BoundingBoxTool {
     _activeTool: AnnotationTool,
     _useLegacyBindings: boolean,
     _shiftKey: boolean,
-    _ctrlOrMetaKey: boolean,
+    ctrlOrMetaKey: boolean,
     _altKey: boolean,
     _isTDViewportActive: boolean,
   ): ActionDescriptor {
     return {
-      leftDrag: "Create/Resize Bounding Boxes",
+      leftDrag: ctrlOrMetaKey ? "Move Bounding Boxes" : "Create/Resize Bounding Boxes",
       rightClick: "Context Menu",
     };
   }
@@ -667,8 +695,6 @@ export class QuickSelectTool {
         startPos = V3.floor(calculateGlobalPos(state, pos));
         currentPos = startPos;
         isDragging = true;
-
-        Store.dispatch(maybePrefetchEmbeddingAction(startPos));
       },
       leftMouseUp: () => {
         isDragging = false;
@@ -716,6 +742,19 @@ export class QuickSelectTool {
         currentPos = newCurrentPos;
 
         quickSelectGeometry.setCoordinates(startPos, currentPos);
+      },
+      leftClick: (pos: Point2, _plane: OrthoView, _event: MouseEvent, _isTouch: boolean) => {
+        const state = Store.getState();
+        const clickedPos = V3.floor(calculateGlobalPos(state, pos));
+        isDragging = false;
+
+        const quickSelectConfig = state.userConfiguration.quickSelect;
+        const isAISelectAvailable = features().segmentAnythingEnabled;
+        const isQuickSelectHeuristic = quickSelectConfig.useHeuristic || !isAISelectAvailable;
+
+        if (!isQuickSelectHeuristic) {
+          Store.dispatch(computeQuickSelectForPointAction(clickedPos, quickSelectGeometry));
+        }
       },
       rightClick: (pos: Point2, plane: OrthoView, event: MouseEvent, isTouch: boolean) => {
         SkeletonHandlers.handleOpenContextMenu(planeView, pos, plane, isTouch, event);

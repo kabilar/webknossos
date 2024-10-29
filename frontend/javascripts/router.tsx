@@ -53,12 +53,12 @@ import TracingLayoutView from "oxalis/view/layouting/tracing_layout_view";
 import React from "react";
 import { connect } from "react-redux";
 // @ts-expect-error ts-migrate(2305) FIXME: Module '"react-router-dom"' has no exported member... Remove this comment to see the full error message
-import { ContextRouter, Link, RouteProps } from "react-router-dom";
+import { type ContextRouter, Link, type RouteProps } from "react-router-dom";
 import { Redirect, Route, Router, Switch } from "react-router-dom";
 import {
   APICompoundTypeEnum,
-  APIResolutionRestrictions,
-  APIUser,
+  type APIResolutionRestrictions,
+  type APIUser,
   TracingTypeEnum,
 } from "types/api_flow_types";
 
@@ -67,7 +67,8 @@ import { Store } from "oxalis/singletons";
 import VerifyEmailView from "admin/auth/verify_email_view";
 import TimeTrackingOverview from "admin/statistic/time_tracking_overview";
 import loadable from "libs/lazy_loader";
-import { EmptyObject } from "types/globals";
+import type { EmptyObject } from "types/globals";
+import { DatasetURLImport } from "admin/dataset/dataset_url_import";
 import AiModelListView from "admin/voxelytics/ai_model_list_view";
 
 const { Content } = Layout;
@@ -117,7 +118,7 @@ function PageNotFoundView() {
           }
           style={{ height: "100%" }}
           extra={[
-            <Link to="/">
+            <Link to="/" key="return-to-dashboard">
               <Button>Back to Dashboard</Button>
             </Link>,
           ]}
@@ -175,7 +176,7 @@ class ReactRouter extends React.Component<Props> {
             type: ControlModeEnum.SANDBOX,
             tracingType,
             name: match.params.datasetName || "",
-            owningOrganization: match.params.organizationName || "",
+            owningOrganization: match.params.organizationId || "",
           }}
         />
       );
@@ -190,7 +191,7 @@ class ReactRouter extends React.Component<Props> {
       initialCommandType={{
         type: ControlModeEnum.VIEW,
         name: match.params.datasetName || "",
-        owningOrganization: match.params.organizationName || "",
+        owningOrganization: match.params.organizationId || "",
       }}
     />
   );
@@ -298,6 +299,11 @@ class ReactRouter extends React.Component<Props> {
                 path="/users"
                 component={UserListView}
                 requiresAdminOrManagerRole
+              />
+              <SecuredRouteWithErrorBoundary
+                isAuthenticated={isAuthenticated}
+                path="/import"
+                component={DatasetURLImport}
               />
               <SecuredRouteWithErrorBoundary
                 isAuthenticated={isAuthenticated}
@@ -438,32 +444,14 @@ class ReactRouter extends React.Component<Props> {
               />
               <SecuredRouteWithErrorBoundary
                 isAuthenticated={isAuthenticated}
-                path="/datasets/:organizationName/:datasetName/import"
-                requiresAdminOrManagerRole
-                render={({ match }: ContextRouter) => (
-                  <DatasetSettingsView
-                    isEditingMode={false}
-                    datasetId={{
-                      name: match.params.datasetName || "",
-                      owningOrganization: match.params.organizationName || "",
-                    }}
-                    onComplete={() =>
-                      window.location.replace(`${window.location.origin}/dashboard/datasets`)
-                    }
-                    onCancel={() => window.history.back()}
-                  />
-                )}
-              />
-              <SecuredRouteWithErrorBoundary
-                isAuthenticated={isAuthenticated}
-                path="/datasets/:organizationName/:datasetName/edit"
+                path="/datasets/:organizationId/:datasetName/edit"
                 requiresAdminOrManagerRole
                 render={({ match }: ContextRouter) => (
                   <DatasetSettingsView
                     isEditingMode
                     datasetId={{
                       name: match.params.datasetName || "",
-                      owningOrganization: match.params.organizationName || "",
+                      owningOrganization: match.params.organizationId || "",
                     }}
                     onComplete={() => window.history.back()}
                     onCancel={() => window.history.back()}
@@ -545,7 +533,7 @@ class ReactRouter extends React.Component<Props> {
               />
               <SecuredRouteWithErrorBoundary
                 isAuthenticated={isAuthenticated}
-                path="/organizations/:organizationName"
+                path="/organizations/:organizationId"
                 render={() => <OrganizationEditView />}
               />
               <RouteWithErrorBoundary
@@ -616,7 +604,7 @@ class ReactRouter extends React.Component<Props> {
                 }}
               />
               <Route
-                path="/datasets/:organizationName/:datasetName/view"
+                path="/datasets/:organizationId/:datasetName/view"
                 render={this.tracingViewMode}
               />
               <RouteWithErrorBoundary
@@ -625,25 +613,25 @@ class ReactRouter extends React.Component<Props> {
                   <AsyncRedirect
                     redirectTo={async () => {
                       const datasetName = match.params.id || "";
-                      const organizationName = await getOrganizationForDataset(datasetName);
-                      return `/datasets/${organizationName}/${datasetName}/view${location.search}${location.hash}`;
+                      const organizationId = await getOrganizationForDataset(datasetName);
+                      return `/datasets/${organizationId}/${datasetName}/view${location.search}${location.hash}`;
                     }}
                   />
                 )}
               />
               <RouteWithErrorBoundary
-                path="/datasets/:organizationName/:datasetName/sandbox/:type"
+                path="/datasets/:organizationId/:datasetName/sandbox/:type"
                 render={this.tracingSandbox}
               />
               <SecuredRouteWithErrorBoundary
                 isAuthenticated={isAuthenticated}
-                path="/datasets/:organizationName/:datasetName/createExplorative/:type"
+                path="/datasets/:organizationId/:datasetName/createExplorative/:type"
                 render={({ match }: ContextRouter) => (
                   <AsyncRedirect
                     pushToHistory={false}
                     redirectTo={async () => {
                       if (
-                        !match.params.organizationName ||
+                        !match.params.organizationId ||
                         !match.params.datasetName ||
                         !match.params.type
                       ) {
@@ -652,7 +640,7 @@ class ReactRouter extends React.Component<Props> {
                       }
 
                       const dataset = {
-                        owningOrganization: match.params.organizationName,
+                        owningOrganization: match.params.organizationId,
                         name: match.params.datasetName,
                       };
                       const type =
@@ -662,7 +650,7 @@ class ReactRouter extends React.Component<Props> {
                       const resolutionRestrictions: APIResolutionRestrictions = {};
 
                       if (getParams.minRes !== undefined) {
-                        resolutionRestrictions.min = parseInt(getParams.minRes);
+                        resolutionRestrictions.min = Number.parseInt(getParams.minRes);
 
                         if (!_.isNumber(resolutionRestrictions.min)) {
                           throw new Error("Invalid minRes parameter");
@@ -670,7 +658,7 @@ class ReactRouter extends React.Component<Props> {
                       }
 
                       if (getParams.maxRes !== undefined) {
-                        resolutionRestrictions.max = parseInt(getParams.maxRes);
+                        resolutionRestrictions.max = Number.parseInt(getParams.maxRes);
 
                         if (!_.isNumber(resolutionRestrictions.max)) {
                           throw new Error("Invalid maxRes parameter");
@@ -695,10 +683,7 @@ class ReactRouter extends React.Component<Props> {
                 // Note that this route has to be beneath all others sharing the same prefix,
                 // to avoid url mismatching
               }
-              <Route
-                path="/datasets/:organizationName/:datasetName"
-                render={this.tracingViewMode}
-              />
+              <Route path="/datasets/:organizationId/:datasetName" render={this.tracingViewMode} />
               <RouteWithErrorBoundary
                 path="/publications/:id"
                 render={({ match }: ContextRouter) => (

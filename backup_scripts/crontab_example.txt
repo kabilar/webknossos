@@ -1,0 +1,4 @@
+# Example crontab values that will run each backup at 5PM EST
+0 21 * * * /home/ec2-user/opt/webknossos/backup_fossildb_prod.sh
+0 21 * * * /home/ec2-user/opt/webknossos/backup_postgres_prod.sh
+0 21 * * * /home/ec2-user/opt/webknossos/backup_docker_volumes_prod.sh

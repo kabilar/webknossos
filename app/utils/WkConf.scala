@@ -183,6 +183,7 @@ class WkConf @Inject()(configuration: Configuration) extends ConfigReader with L
     object CookieAuthenticator {
       val cookieName: String = get[String]("silhouette.cookieAuthenticator.cookieName")
       val cookiePath: String = get[String]("silhouette.cookieAuthenticator.cookiePath")
+      val domain: String = get[String]("silhouette.cookieAuthenticator.domain")
       val secureCookie: Boolean = get[Boolean]("silhouette.cookieAuthenticator.secureCookie")
       val httpOnlyCookie: Boolean = get[Boolean]("silhouette.cookieAuthenticator.httpOnlyCookie")
       val useFingerprinting: Boolean = get[Boolean]("silhouette.cookieAuthenticator.useFingerprinting")

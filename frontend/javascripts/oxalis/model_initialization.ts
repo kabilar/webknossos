@@ -95,7 +95,7 @@ import Toast from "libs/toast";
 import type { PartialUrlManagerState, UrlStateByLayer } from "oxalis/controller/url_manager";
 import UrlManager from "oxalis/controller/url_manager";
 import * as Utils from "libs/utils";
-import constants, { ControlModeEnum, AnnotationToolEnum, Vector3 } from "oxalis/constants";
+import constants, { ControlModeEnum, AnnotationToolEnum, type Vector3 } from "oxalis/constants";
 import messages from "messages";
 import {
   setActiveConnectomeAgglomerateIdsAction,
@@ -251,7 +251,7 @@ async function fetchEditableMappings(
   serverVolumeTracings: ServerVolumeTracing[],
 ): Promise<ServerEditableMapping[]> {
   const promises = serverVolumeTracings
-    .filter((tracing) => tracing.mappingIsEditable)
+    .filter((tracing) => tracing.hasEditableMapping)
     .map((tracing) => getEditableMappingInfo(tracingStoreUrl, tracing.id));
   return Promise.all(promises);
 }
@@ -401,7 +401,7 @@ function initializeDataset(
   const volumeTracings = getServerVolumeTracings(serverTracings);
 
   if (volumeTracings.length > 0) {
-    const newDataLayers = setupLayerForVolumeTracing(dataset, volumeTracings);
+    const newDataLayers = getMergedDataLayersFromDatasetAndVolumeTracings(dataset, volumeTracings);
     mutableDataset.dataSource.dataLayers = newDataLayers;
     validateVolumeLayers(volumeTracings, newDataLayers);
   }
@@ -480,7 +480,7 @@ function initializeDataLayerInstances(gpuFactor: number | null | undefined): {
   };
 }
 
-function setupLayerForVolumeTracing(
+function getMergedDataLayersFromDatasetAndVolumeTracings(
   dataset: APIDataset,
   tracings: Array<ServerVolumeTracing>,
 ): Array<APIDataLayer> {

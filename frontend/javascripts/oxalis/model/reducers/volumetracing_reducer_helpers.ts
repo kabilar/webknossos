@@ -1,5 +1,10 @@
 import update from "immutability-helper";
-import { ContourMode, OrthoViews, OrthoViewWithoutTD, Vector3 } from "oxalis/constants";
+import {
+  type ContourMode,
+  OrthoViews,
+  type OrthoViewWithoutTD,
+  type Vector3,
+} from "oxalis/constants";
 import type {
   EditableMapping,
   MappingType,
@@ -159,7 +164,7 @@ export function setMappingNameReducer(
   isMappingEnabled: boolean = true,
 ) {
   // Editable mappings or locked mappings cannot be disabled or switched for now
-  if (volumeTracing.mappingIsEditable || volumeTracing.mappingIsLocked) {
+  if (volumeTracing.hasEditableMapping || volumeTracing.mappingIsLocked) {
     return state;
   }
   // Only HDF5 mappings are persisted in volume annotations for now

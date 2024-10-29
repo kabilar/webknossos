@@ -11,7 +11,7 @@ import {
   toggleInactiveTreesAction,
 } from "oxalis/model/actions/skeletontracing_actions";
 import { addUserBoundingBoxAction } from "oxalis/model/actions/annotation_actions";
-import { InputKeyboard, InputKeyboardNoLoop, InputMouse, MouseBindingMap } from "libs/input";
+import { InputKeyboard, InputKeyboardNoLoop, InputMouse, type MouseBindingMap } from "libs/input";
 import { document } from "libs/window";
 import {
   getPosition,
@@ -220,7 +220,7 @@ function createDelayAwareMoveHandler(multiplier: number) {
 
     const thirdDim = dimensions.thirdDimensionForPlane(activeViewport);
     const voxelPerSecond =
-      state.userConfiguration.moveValue / state.dataset.dataSource.scale[thirdDim];
+      state.userConfiguration.moveValue / state.dataset.dataSource.scale.factor[thirdDim];
 
     if (state.userConfiguration.dynamicSpaceDirection) {
       // Change direction of the value connected to space, based on the last direction

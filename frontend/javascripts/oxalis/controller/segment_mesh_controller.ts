@@ -12,7 +12,7 @@ import {
 } from "oxalis/model/accessors/volumetracing_accessor";
 import { NO_LOD_MESH_INDEX } from "oxalis/model/sagas/mesh_saga";
 import Store from "oxalis/store";
-import { AdditionalCoordinate } from "types/api_flow_types";
+import type { AdditionalCoordinate } from "types/api_flow_types";
 import { getAdditionalCoordinatesAsString } from "oxalis/model/accessors/flycam_accessor";
 
 const ACTIVATED_COLOR = [0.7, 0.5, 0.1] as const;
@@ -224,7 +224,7 @@ export default class SegmentMeshController {
       return;
     }
     _.forEach(meshGroups, (meshGroup, lod) => {
-      const lodNumber = parseInt(lod);
+      const lodNumber = Number.parseInt(lod);
       if (lodNumber !== NO_LOD_MESH_INDEX) {
         this.meshesLODRootGroup.removeLODMesh(meshGroup, lodNumber);
       } else {
@@ -242,7 +242,7 @@ export default class SegmentMeshController {
     const additionalCoordKey = getAdditionalCoordinatesAsString(additionalCoordinates);
     const meshGroups = this.getMeshGroups(additionalCoordKey, layerName, segmentId);
     if (meshGroups == null) return null;
-    const bestLod = Math.min(...Object.keys(meshGroups).map((lodVal) => parseInt(lodVal)));
+    const bestLod = Math.min(...Object.keys(meshGroups).map((lodVal) => Number.parseInt(lodVal)));
     return this.getMeshGroupsByLOD(additionalCoordinates, layerName, segmentId, bestLod);
   }
 
@@ -388,8 +388,10 @@ export default class SegmentMeshController {
         child.material.opacity = targetOpacity;
       }
     });
+    const isNotProofreadingMode = Store.getState().uiInformation.activeTool !== "PROOFREAD";
+
     const changeMaterial = (fn: (material: MeshMaterial) => void) => {
-      if (mesh.isMerged) {
+      if (mesh.isMerged || isNotProofreadingMode) {
         // Update the material for all meshes that belong to the current
         // segment ID.
         parent.traverse((child) => {
@@ -411,7 +413,7 @@ export default class SegmentMeshController {
         const newColor: readonly [number, number, number] = mesh.isHovered
           ? HOVERED_COLOR
           : ACTIVATED_COLOR;
-        material.color.setHSL(...newColor);
+        material.color = new THREE.Color().setHSL(...newColor);
         material.opacity = 1.0;
         material.emissive.setHSL(...HOVERED_COLOR);
       });

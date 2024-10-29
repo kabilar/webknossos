@@ -4,9 +4,9 @@ import { connect } from "react-redux";
 import LoginView from "admin/auth/login_view";
 import {
   isFeatureAllowedByPricingPlan,
-  PricingPlanEnum,
+  type PricingPlanEnum,
 } from "admin/organization/pricing_plan_utils";
-import { APIOrganization, APIUser } from "types/api_flow_types";
+import type { APIOrganization, APIUser } from "types/api_flow_types";
 import { PageUnavailableForYourPlanView } from "components/pricing_enforcers";
 import type { ComponentType } from "react";
 import { isUserAdminOrManager } from "libs/utils";
@@ -72,7 +72,11 @@ class SecuredRoute extends React.PureComponent<SecuredRouteProps, State> {
         {...rest}
         render={(props) => {
           if (!isCompletelyAuthenticated) {
-            return <LoginView redirect={this.props.location.pathname} />;
+            return (
+              <LoginView
+                redirect={this.props.location.pathname.concat(this.props.location.search)}
+              />
+            );
           }
 
           if (

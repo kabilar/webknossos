@@ -1,10 +1,9 @@
-import React from "react";
 import _ from "lodash";
 import type { Vector4 } from "oxalis/constants";
-import {
-  type DatasetConfiguration,
-  type UserConfiguration,
-  type DatasetLayerConfiguration,
+import type {
+  DatasetConfiguration,
+  UserConfiguration,
+  DatasetLayerConfiguration,
 } from "oxalis/store";
 
 export type RecommendedConfiguration = Partial<
@@ -57,7 +56,7 @@ export const settingsTooltips: Partial<Record<keyof RecommendedConfiguration, st
       but it will take more time until the best quality is shown).`,
   fourBit:
     "Decrease size of transferred data by half, using lossy compression. Recommended for poor and/or capped internet connections.",
-  interpolation: "Smooth the rendered data by interpolating color values",
+  interpolation: "Smooth the rendered data by interpolating color values.",
   renderMissingDataBlack:
     "If disabled, missing data will be rendered by using downsampled magnifications.",
   gpuMemoryFactor:
@@ -65,17 +64,17 @@ export const settingsTooltips: Partial<Record<keyof RecommendedConfiguration, st
   useLegacyBindings:
     "When enabled, right-click does not open the context menu in some tools, but instead triggers actions, such as creating nodes or erasing volume data. This setting is only recommended when having experience with these classic mouse and keyboard bindings.",
   dynamicSpaceDirection:
-    "When enabled, the move direction (shortcuts d/f) changes dynamically to match the direction of the last two created nodes",
+    "When enabled, the move direction (shortcuts d/f) changes dynamically to match the direction of the last two created nodes.",
   keyboardDelay:
     "Delay after which shortcut keys (e.g. d/f for moving) are assumed to be intentionally held down, so that continuous movement is triggered.",
   moveValue: "Increase to speed up movement through the dataset when holding d/f/space.",
-  displayCrosshair: "Show crosshair marker in the viewing direction center",
+  displayCrosshair: "Show crosshair marker in the viewing direction center.",
   sphericalCapRadius: "Set the radius of the spherical cap the data is projected on.",
-  crosshairSize: "Size of the crosshair marker in the viewing direction center",
-  rotateValue: "Rotation speed when using the arrow keys on the keyboard",
+  crosshairSize: "Size of the crosshair marker in the viewing direction center.",
+  rotateValue: "Rotation speed when using the arrow keys on the keyboard.",
   mouseRotateValue: "Rotation speed when using the mouse to drag the rotation.",
-  zoom: "Zoom in or out in the data viewports",
-  displayScalebars: "Show a scale in the lower-right corner of each viewport",
+  zoom: "Zoom in or out in the data viewports.",
+  displayScalebars: "Show a scale in the lower-right corner of each viewport.",
   blendMode:
     "Set the blend mode for the dataset. The additive mode (default) adds the data values of all color layers. In cover mode, color layers are rendered on top of each other so that the data values of lower color layers are hidden by values of higher layers. Cover mode enables reordering of color layers.",
   renderWatermark: "Show a WEBKNOSSOS logo in the lower-left corner of each screenshot.",
@@ -338,14 +337,16 @@ instead. Only enable this option if you understand its effect. All layers will n
     "The explored data has a different voxel size from the datasource that was already loaded. The explored voxel size was:",
   "dataset.segmentationlayer_not_existing": "This annotation has no segmentation layer.",
   "dataset.invalid_datasource_json":
-    "The datasource-properties.json on disk is invalid. Please review all properties before importing the dataset. You can always go back and change the values later.",
+    "The datasource-properties.json on disk is invalid. Please review all properties below to use the dataset. You can always go back and change the values later.",
   "dataset.missing_datasource_json":
-    "The datasource-properties.json was not found. The values below are guessed by WEBKNOSSOS. Please review all properties before importing the dataset. You can always go back and change the values later.",
+    "A datasource-properties.json file was not found. Please review all properties below to use the dataset. You can always go back and change the values later.",
   "dataset.import_complete":
-    "A valid datasource-properties.json was found. The dataset is imported and ready to use. You may still change the properties below.",
+    "A valid datasource-properties.json file was found. The dataset is imported and ready to use. You may still change the properties below.",
   "dataset.confirm_signup":
     "For dataset annotation, please log in or create an account. For dataset viewing, no account is required. Do you wish to sign up now?",
   "dataset.does_not_exist": "Selected dataset doesn't exist!",
+  "dataset.name.already_taken":
+    "This name is already being used by a different dataset. Please choose a different name.",
   "dataset.no_data": "No data available! Something seems to be wrong with the dataset.",
   "dataset.not_imported": "Please double check if you have the dataset imported:",
   "dataset.changed_without_reload":
@@ -433,6 +434,8 @@ instead. Only enable this option if you understand its effect. All layers will n
     "NML contains <node ...> tag that is not enclosed by a <thing ...> tag: Node with id",
   "nml.edge_outside_tree":
     "NML contains <edge ...> tag that is not enclosed by a <thing ...> tag: Edge",
+  "nml.metadata_entry_outside_tree":
+    "NML contains <metadataEntry ...> tag that is not enclosed by a <thing ...> tag",
   "nml.expected_attribute_missing":
     "Attribute with the following name was expected, but is missing or empty:",
   "nml.invalid_timestamp": "Attribute with the following name was expected to be a unix timestamp:",

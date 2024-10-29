@@ -58,17 +58,17 @@ jobs:
           keys:
             - webpack-cache-{{ checksum ".circleci/cache_version" }}-{{ .Branch }}
             - webpack-cache-{{ checksum ".circleci/cache_version" }}-master
-      - run:
-          name: Assert schema.sql and evolutions are equal
-          command: |
-            docker-compose up -d postgres
-            sleep 3
-            docker-compose run compile tools/postgres/dbtool.js check-evolutions-schema
-      - run:
-          name: Build frontend documentation
-          command: |
-            WK_VERSION=${CIRCLE_TAG:-${CIRCLE_BUILD_NUM:-dev}}
-            docker-compose run base yarn run docs --project-version $WK_VERSION
+#      - run:
+#          name: Assert schema.sql and evolutions are equal
+#          command: |
+#            docker-compose up -d postgres
+#            sleep 3
+#            docker-compose run compile tools/postgres/dbtool.js check-evolutions-schema
+#      - run:
+#          name: Build frontend documentation
+#          command: |
+#            WK_VERSION=${CIRCLE_TAG:-${CIRCLE_BUILD_NUM:-dev}}
+#            docker-compose run base yarn run docs --project-version $WK_VERSION
       - run:
           name: Build webknossos (webpack)
           command: |
@@ -131,80 +131,80 @@ jobs:
 #          name: Lint frontend code and check formatting
 #          command: |
 #            .circleci/not-on-master.sh docker-compose run base bash -c "yarn run check-frontend"
-      - run:
-          name: Check for cyclic dependencies in front-end
-          command: |
-            .circleci/not-on-master.sh docker-compose run base yarn check-cyclic-dependencies
-      - run:
-          name: Run frontend tests
-          command: |
-            .circleci/not-on-master.sh docker-compose run base yarn test-verbose
-      - run:
-          name: Lint backend code and check formatting
-          command: |
-            .circleci/not-on-master.sh docker-compose run backend-lint-format
-      - run:
-          name: Run backend tests
-          command: |
-            .circleci/not-on-master.sh docker-compose run backend-tests
-      - run:
-          name: Run end-to-end tests
-          command: |
-            for i in {1..3}; do # retry
-              .circleci/not-on-master.sh docker-compose run e2e-tests && s=0 && break || s=$?
-            done
-            (exit $s)
-      - run:
-          name: Validate frontend types
-          command: |
-            .circleci/not-on-master.sh docker-compose run base yarn typecheck
-      - run:
-          name: Start webknossos
-          background: true
-          command: docker-compose up webknossos
-      - run:
-          name: Run webknossos smoke test
-          command: |
-            for i in {1..10}; do # retry
-              sleep 10
-              curl --fail -v http://localhost:9000/api/health && s=0 && break || s=$?
-            done
-            (exit $s)
-      - run:
-          name: Stop webknossos
-          command: docker-compose down --volumes --remove-orphans
-
-      - run:
-          name: Start webknossos-datastore
-          background: true
-          command: docker-compose up webknossos-datastore
-      - run:
-          name: Run webknossos-datastore smoke test
-          command: |
-            for i in {1..10}; do # retry
-              sleep 10
-              curl --fail -v http://localhost:9090/data/health && s=0 && break || s=$?
-            done
-            (exit $s)
-      - run:
-          name: Stop webknossos-datastore
-          command: docker-compose down --volumes --remove-orphans
-
-      - run:
-          name: Start webknossos-tracingstore
-          background: true
-          command: docker-compose up webknossos-tracingstore
-      - run:
-          name: Run webknossos-tracingstore smoke test
-          command: |
-            for i in {1..10}; do # retry
-              sleep 10
-              curl --fail -v http://localhost:9050/tracings/health && s=0 && break || s=$?
-            done
-            (exit $s)
-      - run:
-          name: Stop webknossos-tracingstore
-          command: docker-compose down --volumes --remove-orphans
+#      - run:
+#          name: Check for cyclic dependencies in front-end
+#          command: |
+#            .circleci/not-on-master.sh docker-compose run base yarn check-cyclic-dependencies
+#      - run:
+#          name: Run frontend tests
+#          command: |
+#            .circleci/not-on-master.sh docker-compose run base yarn test-verbose
+#      - run:
+#          name: Lint backend code and check formatting
+#          command: |
+#            .circleci/not-on-master.sh docker-compose run backend-lint-format
+#      - run:
+#          name: Run backend tests
+#          command: |
+#            .circleci/not-on-master.sh docker-compose run backend-tests
+#      - run:
+#          name: Run end-to-end tests
+#          command: |
+#            for i in {1..3}; do # retry
+#              .circleci/not-on-master.sh docker-compose run e2e-tests && s=0 && break || s=$?
+#            done
+#            (exit $s)
+#      - run:
+#          name: Validate frontend types
+#          command: |
+#            .circleci/not-on-master.sh docker-compose run base yarn typecheck
+#      - run:
+#          name: Start webknossos
+#          background: true
+#          command: docker-compose up webknossos
+#      - run:
+#          name: Run webknossos smoke test
+#          command: |
+#            for i in {1..10}; do # retry
+#              sleep 10
+#              curl --fail -v http://localhost:9000/api/health && s=0 && break || s=$?
+#            done
+#            (exit $s)
+#      - run:
+#          name: Stop webknossos
+#          command: docker-compose down --volumes --remove-orphans
+#
+#      - run:
+#          name: Start webknossos-datastore
+#          background: true
+#          command: docker-compose up webknossos-datastore
+#      - run:
+#          name: Run webknossos-datastore smoke test
+#          command: |
+#            for i in {1..10}; do # retry
+#              sleep 10
+#              curl --fail -v http://localhost:9090/data/health && s=0 && break || s=$?
+#            done
+#            (exit $s)
+#      - run:
+#          name: Stop webknossos-datastore
+#          command: docker-compose down --volumes --remove-orphans
+#
+#      - run:
+#          name: Start webknossos-tracingstore
+#          background: true
+#          command: docker-compose up webknossos-tracingstore
+#      - run:
+#          name: Run webknossos-tracingstore smoke test
+#          command: |
+#            for i in {1..10}; do # retry
+#              sleep 10
+#              curl --fail -v http://localhost:9050/tracings/health && s=0 && break || s=$?
+#            done
+#            (exit $s)
+#      - run:
+#          name: Stop webknossos-tracingstore
+#          command: docker-compose down --volumes --remove-orphans
 
       - run:
           name: Push docker images

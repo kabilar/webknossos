@@ -7,7 +7,8 @@ import com.scalableminds.webknossos.datastore.dataformats.layers.{ZarrDataLayer,
 import com.scalableminds.webknossos.datastore.datareaders.AxisOrder
 import com.scalableminds.webknossos.datastore.datareaders.zarr.ZarrHeader
 import com.scalableminds.webknossos.datastore.datavault.VaultPath
-import com.scalableminds.webknossos.datastore.models.datasource.Category
+import com.scalableminds.webknossos.datastore.models.VoxelSize
+import com.scalableminds.webknossos.datastore.models.datasource.{Category, DataFormat}
 
 import scala.concurrent.ExecutionContext
 
@@ -15,7 +16,7 @@ class ZarrArrayExplorer(mag: Vec3Int = Vec3Int.ones)(implicit val ec: ExecutionC
 
   override def name: String = "Zarr Array"
 
-  override def explore(remotePath: VaultPath, credentialId: Option[String]): Fox[List[(ZarrLayer, Vec3Double)]] =
+  override def explore(remotePath: VaultPath, credentialId: Option[String]): Fox[List[(ZarrLayer, VoxelSize)]] =
     for {
       zarrayPath <- Fox.successful(remotePath / ZarrHeader.FILENAME_DOT_ZARRAY)
       name = guessNameFromPath(remotePath)
@@ -25,9 +26,20 @@ class ZarrArrayExplorer(mag: Vec3Int = Vec3Int.ones)(implicit val ec: ExecutionC
       boundingBox <- zarrHeader.boundingBox(guessedAxisOrder) ?~> "failed to read bounding box from zarr header. Make sure data is in (T/C)ZYX format"
       magLocator = MagLocator(mag, Some(remotePath.toUri.toString), None, Some(guessedAxisOrder), None, credentialId)
       layer: ZarrLayer = if (looksLikeSegmentationLayer(name, elementClass)) {
-        ZarrSegmentationLayer(name, boundingBox, elementClass, List(magLocator), largestSegmentId = None)
+        ZarrSegmentationLayer(name,
+                              boundingBox,
+                              elementClass,
+                              List(magLocator),
+                              largestSegmentId = None,
+                              dataFormat = DataFormat.zarr)
       } else
-        ZarrDataLayer(name, Category.color, boundingBox, elementClass, List(magLocator), additionalAxes = None)
-    } yield List((layer, Vec3Double.ones))
+        ZarrDataLayer(name,
+                      Category.color,
+                      boundingBox,
+                      elementClass,
+                      List(magLocator),
+                      additionalAxes = None,
+                      dataFormat = DataFormat.zarr)
+    } yield List((layer, VoxelSize.fromFactorWithDefaultUnit(Vec3Double.ones)))
 
 }

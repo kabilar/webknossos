@@ -1,7 +1,8 @@
-import React, { useEffect } from "react";
+import type React from "react";
+import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { App, ConfigProvider, theme } from "antd";
-import { APIUser } from "types/api_flow_types";
+import type { APIUser } from "types/api_flow_types";
 import window from "libs/window";
 import type { OxalisState, Theme } from "oxalis/store";
 import type { AliasToken, OverrideToken } from "antd/lib/theme/interface";
@@ -10,6 +11,8 @@ import { ToastContextMountRoot } from "libs/toast";
 const ColorWKBlue = "#5660ff"; // WK ~blue/purple
 const ColorWKLinkHover = "#a8b4ff"; // slightly brighter WK Blue
 const ColorWKDarkGrey = "#1f1f1f";
+const ColorWhite = "white";
+const ColorBlack = "black";
 
 export function getSystemColorTheme(): Theme {
   // @ts-ignore
@@ -32,6 +35,7 @@ export function getAntdTheme(userTheme: Theme) {
     Layout: {
       headerBg: ColorWKDarkGrey,
       footerBg: ColorWKDarkGrey,
+      siderBg: userTheme === "dark" ? ColorBlack : ColorWhite,
     },
     Menu: {
       darkItemBg: ColorWKDarkGrey,
@@ -40,6 +44,8 @@ export function getAntdTheme(userTheme: Theme) {
     Tree: {
       colorBgContainer: "transparent",
       directoryNodeSelectedBg: ColorWKBlue,
+      titleHeight: 20, // default is 24px,
+      marginXXS: 2, // default is 4px; adjust to match checkboxes because of smaller titleHeight
     },
   };
 
@@ -57,6 +63,11 @@ export function getAntdTheme(userTheme: Theme) {
 
   if (userTheme === "dark") {
     algorithm = theme.darkAlgorithm;
+    components.Tree = {
+      ...components.Tree,
+      nodeSelectedBg: ColorWKBlue,
+      nodeHoverBg: ColorWKDarkGrey,
+    };
   }
   return { algorithm, token: globalDesignToken, components };
 }
@@ -73,9 +84,9 @@ export default function GlobalThemeProvider({
   useEffect(() => {
     // body is outside of the ReactDOM, so we have to manually update it
     if (isDarkMode) {
-      document.body.style.backgroundColor = "black";
+      document.body.style.backgroundColor = ColorBlack;
     } else {
-      document.body.style.backgroundColor = "white";
+      document.body.style.backgroundColor = ColorWhite;
     }
   }, [isDarkMode]);
 

@@ -1,7 +1,6 @@
 import { Card, Col, Row } from "antd";
 import type { RouteComponentProps } from "react-router-dom";
 import { withRouter } from "react-router-dom";
-import React from "react";
 import * as Utils from "libs/utils";
 import window from "libs/window";
 import LoginForm from "./login_form";
@@ -30,9 +29,19 @@ function LoginView({ history, redirect }: Props) {
   return (
     <Row justify="center" align="middle" className="login-view">
       <Col xs={22} sm={20} md={16} lg={12} xl={8}>
-        <Card className="login-content">
+        <Card className="login-content" style={{ margin: "0 auto" }}>
           <h3>Login</h3>
-          <LoginForm layout="horizontal" onLoggedIn={onLoggedIn} />
+          <h5>WebKNOSSOS for <a href="https://connects.mgh.harvard.edu/">LINC</a> is accessible only to approved users
+          </h5>
+          <br></br>
+          <h5>Webknossos can be accessed by selecting the Webknossos links on the <a href="https://lincbrain.org">LINC
+            Data Platform</a> homepage
+            or in the file browser next to each asset</h5>
+          <br></br>
+          <h5>Please ensure that you are <b>not using an Incognito browser session</b> as cookies are required for login
+            via the LINC Data Platform
+          </h5>
+          {/*<LoginForm layout="horizontal" onLoggedIn={onLoggedIn} />*/}
         </Card>
       </Col>
     </Row>

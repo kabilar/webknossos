@@ -1,6 +1,5 @@
-import { Button, Radio, RadioChangeEvent, Space } from "antd";
-import React from "react";
-import { WizardComponentProps } from "./common";
+import { Button, Radio, type RadioChangeEvent, Space } from "antd";
+import type { WizardComponentProps } from "./common";
 
 export default function SelectImportType({
   wizardContext,
@@ -39,8 +38,8 @@ export default function SelectImportType({
         </div>
         In all three cases, you can tweak which layers should be used later.
       </div>
-      <Button type="primary" style={{ marginTop: 16 }} onClick={onNext}>
-        Next
+      <Button type="primary" style={{ marginTop: 16 }} onClick={onNext} disabled={true}>
+        For LINC, please use the 'Add Remote Dataset' functionality
       </Button>
     </div>
   );

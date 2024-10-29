@@ -1,6 +1,7 @@
 package com.scalableminds.webknossos.datastore.datareaders.zarr3
 
-import com.scalableminds.util.tools.BoxImplicits
+import com.scalableminds.util.geometry.Vec3Int
+import com.scalableminds.util.tools.{BoxImplicits, JsonHelper}
 import com.scalableminds.webknossos.datastore.datareaders.ArrayDataType.ArrayDataType
 import com.scalableminds.webknossos.datastore.datareaders.ArrayOrder.ArrayOrder
 import com.scalableminds.webknossos.datastore.datareaders.DimensionSeparator.DimensionSeparator
@@ -13,6 +14,7 @@ import com.scalableminds.webknossos.datastore.datareaders.{
   NullCompressor
 }
 import com.scalableminds.webknossos.datastore.helpers.JsonImplicits
+import com.scalableminds.webknossos.datastore.models.datasource.{AdditionalAxis, DataLayer}
 import net.liftweb.common.Box.tryo
 import net.liftweb.common.{Box, Full}
 import play.api.libs.json.{Format, JsArray, JsResult, JsString, JsSuccess, JsValue, Json, OFormat}
@@ -240,13 +242,55 @@ object Zarr3ArrayHeader extends JsonImplicits {
             ChunkGridConfiguration(Array(1, 1, 1))))), // Extension not supported for now
         "chunk_key_encoding" -> zarrArrayHeader.chunk_key_encoding,
         "fill_value" -> zarrArrayHeader.fill_value,
-        "attributes" -> Json.toJsFieldJsValueWrapper(zarrArrayHeader.attributes.getOrElse(Map("" -> ""))),
+        "attributes" -> Json.toJsFieldJsValueWrapper(zarrArrayHeader.attributes.getOrElse(Map.empty)),
         "codecs" -> zarrArrayHeader.codecs.map { codec: CodecConfiguration =>
           val configurationJson = if (codec.includeConfiguration) Json.obj("configuration" -> codec) else Json.obj()
           Json.obj("name" -> codec.name) ++ configurationJson
-        },
+        }.map(JsonHelper.removeGeneratedTypeFieldFromJsonRecursively),
         "storage_transformers" -> zarrArrayHeader.storage_transformers,
         "dimension_names" -> zarrArrayHeader.dimension_names
       )
+
+  }
+  def fromDataLayer(dataLayer: DataLayer, mag: Vec3Int): Zarr3ArrayHeader = {
+    val additionalAxes = reorderAdditionalAxes(dataLayer.additionalAxes.getOrElse(Seq.empty))
+    val xyzBBounds = Array(
+      // Zarr can't handle data sets that don't start at 0, so we extend the shape to include "true" coords
+      (dataLayer.boundingBox.width + dataLayer.boundingBox.topLeft.x) / mag.x,
+      (dataLayer.boundingBox.height + dataLayer.boundingBox.topLeft.y) / mag.y,
+      (dataLayer.boundingBox.depth + dataLayer.boundingBox.topLeft.z) / mag.z
+    )
+    Zarr3ArrayHeader(
+      zarr_format = 3,
+      node_type = "array",
+      // channel, additional axes, XYZ
+      shape = Array(1) ++ additionalAxes.map(_.highestValue).toArray ++ xyzBBounds,
+      data_type = Left(dataLayer.elementClass.toString),
+      chunk_grid = Left(
+        ChunkGridSpecification(
+          "regular",
+          ChunkGridConfiguration(
+            chunk_shape = Array.fill(1 + additionalAxes.length)(1) ++ Array(DataLayer.bucketLength,
+                                                                            DataLayer.bucketLength,
+                                                                            DataLayer.bucketLength))
+        )),
+      chunk_key_encoding =
+        ChunkKeyEncoding("v2", configuration = Some(ChunkKeyEncodingConfiguration(separator = Some(".")))),
+      fill_value = Right(0),
+      attributes = None,
+      codecs = Seq(
+        TransposeCodecConfiguration(TransposeSetting.fOrderFromRank(additionalAxes.length + 4)),
+        BytesCodecConfiguration(Some("little")),
+      ),
+      storage_transformers = None,
+      dimension_names = Some(Array("c") ++ additionalAxes.map(_.name).toArray ++ Seq("x", "y", "z"))
+    )
+  }
+  private def reorderAdditionalAxes(additionalAxes: Seq[AdditionalAxis]): Seq[AdditionalAxis] = {
+    val additionalAxesStartIndex = 1 // channel comes first
+    val sorted = additionalAxes.sortBy(_.index)
+    sorted.zipWithIndex.map {
+      case (axis, index) => axis.copy(index = index + additionalAxesStartIndex)
+    }
   }
 }

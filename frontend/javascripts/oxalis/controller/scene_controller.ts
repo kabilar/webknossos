@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import app from "app";
-import Maybe from "data.maybe";
+import type Maybe from "data.maybe";
 import { V3 } from "libs/mjs";
 import * as Utils from "libs/utils";
 import window from "libs/window";
@@ -19,7 +19,7 @@ import constants, {
 } from "oxalis/constants";
 import { getRenderer } from "oxalis/controller/renderer";
 import { setSceneController } from "oxalis/controller/scene_controller_provider";
-import ArbitraryPlane from "oxalis/geometries/arbitrary_plane";
+import type ArbitraryPlane from "oxalis/geometries/arbitrary_plane";
 import Cube from "oxalis/geometries/cube";
 import {
   ContourGeometry,
@@ -42,7 +42,7 @@ import { getPlaneScalingFactor } from "oxalis/model/accessors/view_mode_accessor
 import { sceneControllerReadyAction } from "oxalis/model/actions/actions";
 import Dimensions from "oxalis/model/dimensions";
 import { listenToStoreProperty } from "oxalis/model/helpers/listener_helpers";
-import { getVoxelPerNM } from "oxalis/model/scaleinfo";
+import { getVoxelPerUnit } from "oxalis/model/scaleinfo";
 import { Model } from "oxalis/singletons";
 import type { OxalisState, SkeletonTracing, UserBoundingBox } from "oxalis/store";
 import Store from "oxalis/store";
@@ -107,7 +107,9 @@ class SceneController {
     this.meshesRootGroup = new THREE.Group();
     this.highlightedBBoxId = null;
     // The dimension(s) with the highest resolution will not be distorted
-    this.rootGroup.scale.copy(new THREE.Vector3(...Store.getState().dataset.dataSource.scale));
+    this.rootGroup.scale.copy(
+      new THREE.Vector3(...Store.getState().dataset.dataSource.scale.factor),
+    );
     // Add scene to the group, all Geometries are then added to group
     this.scene.add(this.rootGroup);
     this.scene.add(this.segmentMeshController.meshesLODRootGroup);
@@ -396,7 +398,7 @@ class SceneController {
 
   setClippingDistance(value: number): void {
     // convert nm to voxel
-    const voxelPerNMVector = getVoxelPerNM(Store.getState().dataset.dataSource.scale);
+    const voxelPerNMVector = getVoxelPerUnit(Store.getState().dataset.dataSource.scale);
     V3.scale(voxelPerNMVector, value, this.planeShift);
     app.vent.emit("rerender");
   }

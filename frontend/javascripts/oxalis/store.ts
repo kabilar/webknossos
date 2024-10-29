@@ -1,4 +1,4 @@
-import { createStore, applyMiddleware } from "redux";
+import { createStore, applyMiddleware, type Middleware } from "redux";
 import { enableBatching } from "redux-batched-actions";
 import createSagaMiddleware, { type Saga } from "redux-saga";
 import type {
@@ -26,6 +26,7 @@ import type {
   APIUserCompact,
   AdditionalCoordinate,
   AdditionalAxis,
+  MetadataEntryProto,
 } from "types/api_flow_types";
 import type { TracingStats } from "oxalis/model/accessors/annotation_accessor";
 import type { Action } from "oxalis/model/actions/actions";
@@ -129,45 +130,50 @@ export type UserBoundingBoxWithoutId = {
 export type UserBoundingBox = UserBoundingBoxWithoutId & {
   id: number;
 };
+// When changing MutableTree, remember to also update Tree
 export type MutableTree = {
   treeId: number;
   groupId: number | null | undefined;
   color: Vector3;
   name: string;
   timestamp: number;
-  comments: Array<MutableCommentType>;
-  branchPoints: Array<MutableBranchPoint>;
+  comments: MutableCommentType[];
+  branchPoints: MutableBranchPoint[];
   edges: EdgeCollection;
   isVisible: boolean;
   nodes: MutableNodeMap;
   type: TreeType;
   edgesAreVisible: boolean;
+  metadata: MetadataEntryProto[];
 };
+// When changing Tree, remember to also update MutableTree
 export type Tree = {
   readonly treeId: number;
   readonly groupId: number | null | undefined;
   readonly color: Vector3;
   readonly name: string;
   readonly timestamp: number;
-  readonly comments: Array<CommentType>;
-  readonly branchPoints: Array<BranchPoint>;
+  readonly comments: CommentType[];
+  readonly branchPoints: BranchPoint[];
   readonly edges: EdgeCollection;
   readonly isVisible: boolean;
   readonly nodes: NodeMap;
   readonly type: TreeType;
   readonly edgesAreVisible: boolean;
+  readonly metadata: MetadataEntryProto[];
 };
 export type TreeGroupTypeFlat = {
   readonly name: string;
   readonly groupId: number;
+  readonly isExpanded?: boolean;
 };
 export type TreeGroup = TreeGroupTypeFlat & {
-  readonly children: Array<TreeGroup>;
+  readonly children: TreeGroup[];
 };
 export type MutableTreeGroup = {
   name: string;
   groupId: number;
-  children: Array<MutableTreeGroup>;
+  children: MutableTreeGroup[];
 };
 
 export type SegmentGroupTypeFlat = TreeGroupTypeFlat;
@@ -230,6 +236,7 @@ export type Segment = {
   readonly creationTime: number | null | undefined;
   readonly color: Vector3 | null;
   readonly groupId: number | null | undefined;
+  readonly metadata: MetadataEntryProto[];
 };
 export type SegmentMap = DiffableMap<number, Segment>;
 
@@ -254,7 +261,7 @@ export type VolumeTracing = TracingBase & {
   readonly contourList: Array<Vector3>;
   readonly fallbackLayer?: string;
   readonly mappingName?: string | null | undefined;
-  readonly mappingIsEditable?: boolean;
+  readonly hasEditableMapping?: boolean;
   readonly mappingIsLocked?: boolean;
   readonly hasSegmentIndex: boolean;
 };
@@ -335,6 +342,9 @@ export type PartialDatasetConfiguration = Partial<Omit<DatasetConfiguration, "la
 
 export type QuickSelectConfig = {
   readonly useHeuristic: boolean;
+  // Only relevant for useHeuristic=false:
+  readonly predictionDepth?: number;
+  // Only relevant for useHeuristic=true:
   readonly showPreview: boolean;
   readonly segmentMode: "dark" | "light";
   readonly threshold: number;
@@ -346,6 +356,7 @@ export type QuickSelectConfig = {
 export type UserConfiguration = {
   readonly autoSaveLayouts: boolean;
   readonly autoRenderMeshInProofreading: boolean;
+  readonly selectiveVisibilityInProofreading: boolean;
   readonly brushSize: number;
   readonly clippingDistance: number;
   readonly clippingDistanceArbitrary: number;
@@ -392,7 +403,10 @@ export type RecommendedConfiguration = Partial<
 // A histogram value of undefined indicates that the histogram hasn't been fetched yet
 // whereas a value of null indicates that the histogram couldn't be fetched
 export type HistogramDataForAllLayers = Record<string, APIHistogramData | null>;
-export type Mapping = Map<number, number>;
+export type Mapping = Map<number, number> | Map<bigint, bigint>;
+export type NumberLike = number | bigint;
+export type NumberLikeMap = Map<NumberLike, NumberLike>;
+
 export type MappingType = "JSON" | "HDF5";
 export type ActiveMappingInfo = {
   readonly mappingName: string | null | undefined;
@@ -400,7 +414,6 @@ export type ActiveMappingInfo = {
   readonly mappingColors: number[] | null | undefined;
   readonly hideUnmappedIds: boolean;
   readonly mappingStatus: MappingStatus;
-  readonly mappingSize: number;
   readonly mappingType: MappingType;
 };
 export type TemporaryConfiguration = {
@@ -410,6 +423,7 @@ export type TemporaryConfiguration = {
   readonly controlMode: ControlMode;
   readonly mousePosition: Vector2 | null | undefined;
   readonly hoveredSegmentId: number | null;
+  readonly hoveredUnmappedSegmentId: number | null;
   readonly activeMappingByLayer: Record<string, ActiveMappingInfo>;
   readonly isMergerModeEnabled: boolean;
   readonly gpuSetup: {
@@ -516,6 +530,7 @@ export type BusyBlockingInfo = {
   reason?: string;
 };
 type UiInformation = {
+  readonly globalProgress: number; // 0 to 1
   readonly showDropzoneModal: boolean;
   readonly showVersionRestore: boolean;
   readonly showDownloadModal: boolean;
@@ -524,6 +539,7 @@ type UiInformation = {
   readonly aIJobModalState: StartAIJobModalState;
   readonly showRenderAnimationModal: boolean;
   readonly activeTool: AnnotationTool;
+  readonly activeUserBoundingBoxId: number | null | undefined;
   readonly storedLayouts: Record<string, any>;
   readonly isImportingMesh: boolean;
   readonly isInAnnotationView: boolean;
@@ -626,10 +642,10 @@ const combinedReducers = reduceReducers(
   OrganizationReducer,
 );
 
-const store = createStore<OxalisState>(
+const store = createStore<OxalisState, Action, unknown, unknown>(
   enableBatching(combinedReducers),
   defaultState,
-  applyMiddleware(actionLoggerMiddleware, overwriteActionMiddleware, sagaMiddleware),
+  applyMiddleware(actionLoggerMiddleware, overwriteActionMiddleware, sagaMiddleware as Middleware),
 );
 
 export function startSagas(rootSaga: Saga<any[]>) {

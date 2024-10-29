@@ -17,7 +17,7 @@ import VisibilityAwareRaycaster, {
 } from "libs/visibility_aware_raycaster";
 import { listenToStoreProperty } from "oxalis/model/helpers/listener_helpers";
 import { getActiveSegmentationTracing } from "oxalis/model/accessors/volumetracing_accessor";
-import { MeshSceneNode, SceneGroupForMeshes } from "oxalis/controller/segment_mesh_controller";
+import type { MeshSceneNode, SceneGroupForMeshes } from "oxalis/controller/segment_mesh_controller";
 
 const createDirLight = (
   position: Vector3,
@@ -267,9 +267,16 @@ class PlaneView {
           if (segmentationTracing == null) {
             return null;
           }
-          return segmentationTracing.activeUnmappedSegmentId;
+          // If the proofreading tool is not active, pretend that
+          // activeUnmappedSegmentId is null so that no super-voxel
+          // is highlighted.
+          return storeState.uiInformation.activeTool === "PROOFREAD"
+            ? segmentationTracing.activeUnmappedSegmentId
+            : null;
         },
         (activeUnmappedSegmentId) =>
+          // Note that this code is responsible for highlighting the *active*
+          // (not necessarily hovered) segment.
           segmentMeshController.highlightUnmappedSegmentId(activeUnmappedSegmentId),
         true,
       ),

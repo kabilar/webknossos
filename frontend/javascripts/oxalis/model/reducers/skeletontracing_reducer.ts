@@ -36,12 +36,18 @@ import {
   getTreesWithType,
   getNodeAndTree,
   isSkeletonLayerTransformed,
+  mapGroups,
 } from "oxalis/model/accessors/skeletontracing_accessor";
 import ColorGenerator from "libs/color_generator";
 import Constants, { AnnotationToolEnum, TreeTypeEnum } from "oxalis/constants";
 import Toast from "libs/toast";
 import * as Utils from "libs/utils";
 import { userSettings } from "types/schemas/user_settings.schema";
+import {
+  GroupTypeEnum,
+  getNodeKey,
+} from "oxalis/view/right-border-tabs/tree_hierarchy_view_helpers";
+import type { MetadataEntryProto } from "types/api_flow_types";
 
 function SkeletonTracingReducer(state: OxalisState, action: Action): OxalisState {
   switch (action.type) {
@@ -488,6 +494,35 @@ function SkeletonTracingReducer(state: OxalisState, action: Action): OxalisState
             .getOrElse(state);
         }
 
+        case "SET_EXPANDED_TREE_GROUPS": {
+          const { expandedGroups } = action;
+
+          const currentTreeGroups = state.tracing?.skeleton?.treeGroups;
+          if (currentTreeGroups == null) {
+            return state;
+          }
+          const newGroups = mapGroups(currentTreeGroups, (group) => {
+            const shouldBeExpanded = expandedGroups.has(
+              getNodeKey(GroupTypeEnum.GROUP, group.groupId),
+            );
+            if (shouldBeExpanded !== group.isExpanded) {
+              return { ...group, isExpanded: shouldBeExpanded };
+            } else {
+              return group;
+            }
+          });
+
+          return update(state, {
+            tracing: {
+              skeleton: {
+                treeGroups: {
+                  $set: newGroups,
+                },
+              },
+            },
+          });
+        }
+
         case "TOGGLE_ALL_TREES": {
           return toggleAllTreesReducer(state, skeletonTracing);
         }
@@ -820,8 +855,11 @@ function SkeletonTracingReducer(state: OxalisState, action: Action): OxalisState
         case "CREATE_TREE": {
           const { timestamp } = action;
           return createTree(state, timestamp)
-            .map((tree) =>
-              update(state, {
+            .map((tree) => {
+              if (action.treeIdCallback) {
+                action.treeIdCallback(tree.treeId);
+              }
+              return update(state, {
                 tracing: {
                   skeleton: {
                     trees: {
@@ -840,8 +878,8 @@ function SkeletonTracingReducer(state: OxalisState, action: Action): OxalisState
                     },
                   },
                 },
-              }),
-            )
+              });
+            })
             .getOrElse(state);
         }
 
@@ -987,6 +1025,26 @@ function SkeletonTracingReducer(state: OxalisState, action: Action): OxalisState
             .getOrElse(state);
         }
 
+        case "SET_TREE_METADATA": {
+          return getTree(skeletonTracing, action.treeId)
+            .map((tree) => {
+              return update(state, {
+                tracing: {
+                  skeleton: {
+                    trees: {
+                      [tree.treeId]: {
+                        metadata: {
+                          $set: sanitizeMetadata(action.metadata),
+                        },
+                      },
+                    },
+                  },
+                },
+              });
+            })
+            .getOrElse(state);
+        }
+
         case "SET_EDGES_ARE_VISIBLE": {
           return getTree(skeletonTracing, action.treeId)
             .map((tree) => {
@@ -1095,6 +1153,28 @@ function SkeletonTracingReducer(state: OxalisState, action: Action): OxalisState
       }
     })
     .getOrElse(state);
+}
+
+export function sanitizeMetadata(metadata: MetadataEntryProto[]) {
+  // Workaround for stringList values that are [], even though they
+  // should be null. This workaround is necessary because protobuf cannot
+  // distinguish between an empty list and an not existent property.
+  // Therefore, we clean this up here.
+  return metadata.map((prop) => {
+    // If stringList value is defined, but it's an empty array, it should
+    // be switched to undefined
+    const needsCorrection =
+      prop.stringListValue != null &&
+      prop.stringListValue.length === 0 &&
+      (prop.stringValue != null || prop.numberValue != null || prop.boolValue != null);
+    if (needsCorrection) {
+      return {
+        ...prop,
+        stringListValue: undefined,
+      };
+    }
+    return prop;
+  });
 }
 
 export default SkeletonTracingReducer;

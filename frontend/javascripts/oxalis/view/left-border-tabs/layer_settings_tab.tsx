@@ -1,4 +1,4 @@
-import { Button, Col, Divider, Dropdown, MenuProps, Modal, Row, Switch, Tooltip } from "antd";
+import { Button, Col, Divider, Dropdown, type MenuProps, Modal, Row, Switch } from "antd";
 import type { Dispatch } from "redux";
 import {
   EditOutlined,
@@ -16,20 +16,19 @@ import {
 } from "@ant-design/icons";
 import ErrorHandling from "libs/error_handling";
 import { connect, useDispatch, useSelector } from "react-redux";
-import React from "react";
+import React, { useCallback } from "react";
 import _ from "lodash";
 import classnames from "classnames";
 import update from "immutability-helper";
-import { SortableContainer, SortableElement, SortableHandle } from "react-sortable-hoc";
 import {
   APIAnnotationTypeEnum,
-  APIDataLayer,
-  APIDataset,
-  APISkeletonLayer,
+  type APIDataLayer,
+  type APIDataset,
+  type APISkeletonLayer,
   APIJobType,
-  EditableLayerProperties,
+  type EditableLayerProperties,
 } from "types/api_flow_types";
-import { ValueOf } from "types/globals";
+import type { ValueOf } from "types/globals";
 import { HoverIconButton } from "components/hover_icon_button";
 import {
   SwitchSetting,
@@ -109,7 +108,7 @@ import { api } from "oxalis/singletons";
 import {
   layerViewConfigurations,
   layerViewConfigurationTooltips,
-  RecommendedConfiguration,
+  type RecommendedConfiguration,
   settings,
   settingsTooltips,
 } from "messages";
@@ -123,6 +122,15 @@ import {
   invertTransform,
   transformPointUnscaled,
 } from "oxalis/model/helpers/transformation_helpers";
+import FastTooltip from "components/fast_tooltip";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { DndContext, type DragEndEvent } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  defaultDatasetViewConfigurationWithoutNull,
+  getDefaultLayerViewConfiguration,
+} from "types/schemas/dataset_view_configuration.schema";
+import defaultState from "oxalis/default_state";
 
 type DatasetSettingsProps = {
   userConfiguration: UserConfiguration;
@@ -162,15 +170,7 @@ type State = {
   layerToMergeWithFallback: APIDataLayer | null | undefined;
 };
 
-const SortableLayerSettingsContainer = SortableContainer(({ children }: { children: any }) => {
-  return <div>{children}</div>;
-});
-
-type DragHandleProps = {
-  hasLessThanTwoColorLayers: boolean;
-};
-
-function dragHandleIcon(isDisabled: boolean = false) {
+function DragHandleIcon({ isDisabled = false }: { isDisabled?: boolean }) {
   return (
     <div
       style={{
@@ -178,7 +178,7 @@ function dragHandleIcon(isDisabled: boolean = false) {
         justifyContent: "center",
         cursor: "grab",
         alignItems: "center",
-        color: isDisabled ? "rgba(0, 0, 0, 0.25)" : "rgba(0, 0, 0, 0.60)",
+        opacity: isDisabled ? 0.3 : 0.6,
       }}
     >
       <MenuOutlined
@@ -190,21 +190,23 @@ function dragHandleIcon(isDisabled: boolean = false) {
     </div>
   );
 }
-const DragHandle = SortableHandle(({ hasLessThanTwoColorLayers }: DragHandleProps) => {
-  return hasLessThanTwoColorLayers ? (
-    <Tooltip title="Order is only changeable with more than one color layer.">
-      {dragHandleIcon(true)}
-    </Tooltip>
-  ) : (
-    dragHandleIcon()
-  );
-});
+function DragHandle({ id }: { id: string }) {
+  const { attributes, listeners } = useSortable({
+    id,
+  });
 
-function DummyDragHandle({ layerType }: { layerType: string }) {
   return (
-    <Tooltip title={`Layer not movable: ${layerType} layers are always rendered on top.`}>
-      {dragHandleIcon(true)}
-    </Tooltip>
+    <div {...attributes} {...listeners}>
+      <DragHandleIcon />
+    </div>
+  );
+}
+
+function DummyDragHandle({ tooltipTitle }: { tooltipTitle: string }) {
+  return (
+    <FastTooltip title={tooltipTitle}>
+      <DragHandleIcon isDisabled />
+    </FastTooltip>
   );
 }
 
@@ -276,7 +278,7 @@ function TransformationIcon({ layer }: { layer: APIDataLayer | APISkeletonLayer 
 
   return (
     <div className="flex-item">
-      <Tooltip
+      <FastTooltip
         title={
           transform != null
             ? `This layer is rendered with ${
@@ -297,8 +299,67 @@ function TransformationIcon({ layer }: { layer: APIDataLayer | APISkeletonLayer 
           }}
           onClick={toggleLayerTransforms}
         />
-      </Tooltip>
+      </FastTooltip>
     </div>
+  );
+}
+
+function LayerInfoIconWithTooltip({
+  layer,
+  dataset,
+}: { layer: APIDataLayer; dataset: APIDataset }) {
+  const renderTooltipContent = useCallback(() => {
+    const elementClass = getElementClass(dataset, layer.name);
+    const resolutionInfo = getResolutionInfo(layer.resolutions);
+    const resolutions = resolutionInfo.getResolutionList();
+    return (
+      <div>
+        <div>Data Type: {elementClass}</div>
+        <div>
+          Available resolutions:
+          <ul>
+            {resolutions.map((r) => (
+              <li key={r.join()}>{r.join("-")}</li>
+            ))}
+          </ul>
+        </div>
+        Bounding Box:
+        <table style={{ borderSpacing: 2, borderCollapse: "separate" }}>
+          <tbody>
+            <tr>
+              <td />
+              <td style={{ fontSize: 10 }}>X</td>
+              <td style={{ fontSize: 10 }}>Y</td>
+              <td style={{ fontSize: 10 }}>Z</td>
+            </tr>
+            <tr>
+              <td style={{ fontSize: 10 }}>Min</td>
+              <td>{layer.boundingBox.topLeft[0]} </td>
+              <td>{layer.boundingBox.topLeft[1]} </td>
+              <td>{layer.boundingBox.topLeft[2]}</td>
+            </tr>
+            <tr>
+              <td style={{ fontSize: 10 }}>Max</td>
+              <td>{layer.boundingBox.topLeft[0] + layer.boundingBox.width}</td>
+              <td>{layer.boundingBox.topLeft[1] + layer.boundingBox.height} </td>
+              <td>{layer.boundingBox.topLeft[2] + layer.boundingBox.depth}</td>
+            </tr>
+            <tr>
+              <td style={{ fontSize: 10 }}>Size</td>
+              <td>{layer.boundingBox.width} </td>
+              <td>{layer.boundingBox.height} </td>
+              <td>{layer.boundingBox.depth}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  }, [layer, dataset]);
+
+  return (
+    <FastTooltip dynamicRenderer={renderTooltipContent} placement="left">
+      <InfoCircleOutlined className="icon-margin-right" />
+    </FastTooltip>
   );
 }
 
@@ -335,7 +396,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
     }
 
     return (
-      <Tooltip title={tooltipText}>
+      <FastTooltip title={tooltipText}>
         <div
           onClick={
             !isDisabled
@@ -349,19 +410,19 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
           <ScanOutlined className="icon-margin-right" />
           Jump to data
         </div>
-      </Tooltip>
+      </FastTooltip>
     );
   };
 
   getReloadDataButton = (layerName: string) => {
     const tooltipText = "Use this when the data on the server changed.";
     return (
-      <Tooltip title={tooltipText}>
+      <FastTooltip title={tooltipText}>
         <div onClick={() => this.reloadLayerData(layerName)}>
           <ReloadOutlined className="icon-margin-right" />
           Reload data from server
         </div>
-      </Tooltip>
+      </FastTooltip>
     );
   };
 
@@ -370,7 +431,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
       ? "Stop editing the possible range of the histogram."
       : "Manually set the possible range of the histogram.";
     return (
-      <Tooltip title={tooltipText}>
+      <FastTooltip title={tooltipText}>
         <div onClick={() => this.props.onChangeLayer(layerName, "isInEditMode", !isInEditMode)}>
           <EditOutlined
             style={{
@@ -381,7 +442,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
           />
           {isInEditMode ? "Stop editing" : "Edit"} histogram range
         </div>
-      </Tooltip>
+      </FastTooltip>
     );
   };
 
@@ -394,12 +455,12 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
 
   getDeleteAnnotationLayerButton = (readableName: string, layer?: APIDataLayer) => (
     <div className="flex-item">
-      <Tooltip title="Delete this annotation layer.">
+      <FastTooltip title="Delete this annotation layer.">
         <i
           onClick={() => this.deleteAnnotationLayerIfConfirmed(readableName, layer)}
           className="fas fa-trash icon-margin-right"
         />
-      </Tooltip>
+      </FastTooltip>
     </div>
   );
 
@@ -449,7 +510,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
       : "";
     const tooltipText = `Automatically clip the histogram to enhance contrast. ${editModeAddendum}`;
     return (
-      <Tooltip title={tooltipText}>
+      <FastTooltip title={tooltipText}>
         <div onClick={() => this.props.onClipHistogram(layerName, isInEditMode)}>
           <VerticalAlignMiddleOutlined
             style={{
@@ -460,7 +521,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
           />
           Clip histogram
         </div>
-      </Tooltip>
+      </FastTooltip>
     );
   };
 
@@ -514,7 +575,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
     isDisabled: boolean,
     onChange: (arg0: boolean, arg1: React.MouseEvent<HTMLButtonElement>) => void,
   ) => (
-    <Tooltip title={isDisabled ? "Show" : "Hide"} placement="top">
+    <FastTooltip title={isDisabled ? "Show" : "Hide"} placement="top">
       {/* This div is necessary for the tooltip to be displayed */}
       <div
         style={{
@@ -524,7 +585,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
       >
         <Switch size="small" onChange={onChange} checked={!isDisabled} />
       </div>
-    </Tooltip>
+    </FastTooltip>
   );
 
   getHistogram = (layerName: string, layer: DatasetLayerConfiguration) => {
@@ -555,7 +616,6 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
     isColorLayer: boolean,
     isInEditMode: boolean,
     layerName: string,
-    elementClass: string,
     layerSettings: DatasetLayerConfiguration,
     hasLessThanTwoColorLayers: boolean = true,
   ) => {
@@ -595,8 +655,6 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
       }
     };
     const hasHistogram = this.props.histogramData[layerName] != null;
-    const resolutionInfo = getResolutionInfo(layer.resolutions);
-    const resolutions = resolutionInfo.getResolutionList();
     const volumeDescriptor =
       "tracingId" in layer && layer.tracingId != null
         ? getVolumeDescriptorById(tracing, layer.tracingId)
@@ -652,13 +710,19 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
         : null,
     ];
     const items = possibleItems.filter((el) => el);
+    const dragHandle = isColorLayer ? (
+      hasLessThanTwoColorLayers ? (
+        <DummyDragHandle tooltipTitle="Order is only changeable with more than one color layer." />
+      ) : (
+        <DragHandle id={layerName} />
+      )
+    ) : (
+      <DummyDragHandle tooltipTitle="Layer not movable: Volume layers are always rendered on top." />
+    );
+
     return (
       <div className="flex-container">
-        {isColorLayer ? (
-          <DragHandle hasLessThanTwoColorLayers={hasLessThanTwoColorLayers} />
-        ) : (
-          <DummyDragHandle layerType="Volume" />
-        )}
+        {dragHandle}
         {this.getEnableDisableLayerSwitch(isDisabled, onChange)}
         <div
           className="flex-item"
@@ -668,7 +732,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
           }}
         >
           {volumeDescriptor != null ? (
-            <Tooltip
+            <FastTooltip
               title={
                 readableLayerNameValidationResult.isValid
                   ? null
@@ -700,7 +764,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
                   label="Volume Layer Name"
                 />
               </span>
-            </Tooltip>
+            </FastTooltip>
           ) : (
             layerName
           )}
@@ -712,58 +776,9 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
           }}
         >
           <div className="flex-item">
-            <Tooltip
-              overlayStyle={{
-                maxWidth: 800,
-              }}
-              title={
-                <div>
-                  <div>Data Type: {elementClass}</div>
-                  <div>
-                    Available resolutions:
-                    <ul>
-                      {resolutions.map((r) => (
-                        <li key={r.join()}>{r.join("-")}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  Bounding Box:
-                  <table style={{ borderSpacing: 2, borderCollapse: "separate" }}>
-                    <tbody>
-                      <tr>
-                        <td />
-                        <td style={{ fontSize: 10 }}>X</td>
-                        <td style={{ fontSize: 10 }}>Y</td>
-                        <td style={{ fontSize: 10 }}>Z</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontSize: 10 }}>Min</td>
-                        <td>{layer.boundingBox.topLeft[0]} </td>
-                        <td>{layer.boundingBox.topLeft[1]} </td>
-                        <td>{layer.boundingBox.topLeft[2]}</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontSize: 10 }}>Max</td>
-                        <td>{layer.boundingBox.topLeft[0] + layer.boundingBox.width}</td>
-                        <td>{layer.boundingBox.topLeft[1] + layer.boundingBox.height} </td>
-                        <td>{layer.boundingBox.topLeft[2] + layer.boundingBox.depth}</td>
-                      </tr>
-                      <tr>
-                        <td style={{ fontSize: 10 }}>Size</td>
-                        <td>{layer.boundingBox.width} </td>
-                        <td>{layer.boundingBox.height} </td>
-                        <td>{layer.boundingBox.depth}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              }
-              placement="left"
-            >
-              <InfoCircleOutlined className="icon-margin-right" />
-            </Tooltip>
+            <LayerInfoIconWithTooltip layer={layer} dataset={this.props.dataset} />
             {canBeMadeEditable ? (
-              <Tooltip
+              <FastTooltip
                 title="Make this segmentation editable by adding a Volume Annotation Layer."
                 placement="left"
               >
@@ -778,13 +793,13 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
                     });
                   }}
                 />
-              </Tooltip>
+              </FastTooltip>
             ) : null}
           </div>
           <TransformationIcon layer={layer} />
           <div className="flex-item">
             {isVolumeTracing ? (
-              <Tooltip
+              <FastTooltip
                 title={`This layer is a volume annotation.${
                   maybeFallbackLayer
                     ? ` It is based on the dataset's original layer ${maybeFallbackLayer}`
@@ -798,12 +813,12 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
                     opacity: 0.7,
                   }}
                 />
-              </Tooltip>
+              </FastTooltip>
             ) : null}
           </div>
           <div className="flex-item">
             {intensityRange != null && intensityRange[0] === intensityRange[1] && !isDisabled ? (
-              <Tooltip
+              <FastTooltip
                 title={`No data is being rendered for this layer as the minimum and maximum of the range have the same values.
             If you want to hide this layer, you can also disable it with the switch on the left.`}
               >
@@ -812,7 +827,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
                     color: "var(--ant-color-warning)",
                   }}
                 />
-              </Tooltip>
+              </FastTooltip>
             ) : null}
             {isColorLayer ? null : this.getOptionalDownsampleVolumeIcon(maybeVolumeTracing)}
           </div>
@@ -831,74 +846,78 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
   getColorLayerSpecificSettings = (
     layerConfiguration: DatasetLayerConfiguration,
     layerName: string,
-  ) => (
-    <div>
-      <LogSliderSetting
-        label={
-          <Tooltip title={layerViewConfigurationTooltips.gammaCorrectionValue}>
-            {layerViewConfigurations.gammaCorrectionValue}
-          </Tooltip>
-        }
-        min={0.01}
-        max={10}
-        roundTo={3}
-        value={layerConfiguration.gammaCorrectionValue}
-        onChange={_.partial(this.props.onChangeLayer, layerName, "gammaCorrectionValue")}
-      />
-      <Row
-        className="margin-bottom"
-        style={{
-          marginTop: 6,
-        }}
-      >
-        <Col span={SETTING_LEFT_SPAN}>
-          <label className="setting-label">Color</label>
-        </Col>
-        <Col span={SETTING_MIDDLE_SPAN}>
-          <ColorSetting
-            value={Utils.rgbToHex(layerConfiguration.color)}
-            onChange={_.partial(this.props.onChangeLayer, layerName, "color")}
-            style={{
-              marginLeft: 6,
-            }}
-          />
-        </Col>
-        <Col span={SETTING_VALUE_SPAN}>
-          <Tooltip title="Invert the color of this layer.">
-            <div
-              onClick={() =>
-                this.props.onChangeLayer(
-                  layerName,
-                  "isInverted",
-                  layerConfiguration ? !layerConfiguration.isInverted : false,
-                )
-              }
+  ) => {
+    const defaultSettings = getDefaultLayerViewConfiguration();
+    return (
+      <div>
+        <LogSliderSetting
+          label={
+            <FastTooltip title={layerViewConfigurationTooltips.gammaCorrectionValue}>
+              {layerViewConfigurations.gammaCorrectionValue}
+            </FastTooltip>
+          }
+          min={0.01}
+          max={10}
+          roundTo={3}
+          value={layerConfiguration.gammaCorrectionValue}
+          onChange={_.partial(this.props.onChangeLayer, layerName, "gammaCorrectionValue")}
+          defaultValue={defaultSettings.gammaCorrectionValue}
+        />
+        <Row
+          className="margin-bottom"
+          style={{
+            marginTop: 6,
+          }}
+        >
+          <Col span={SETTING_LEFT_SPAN}>
+            <label className="setting-label">Color</label>
+          </Col>
+          <Col span={SETTING_MIDDLE_SPAN}>
+            <ColorSetting
+              value={Utils.rgbToHex(layerConfiguration.color)}
+              onChange={_.partial(this.props.onChangeLayer, layerName, "color")}
               style={{
-                top: 4,
-                right: 0,
-                marginTop: 0,
-                marginLeft: 10,
-                display: "inline-flex",
+                marginLeft: 6,
               }}
-            >
-              <i
-                className={classnames("fas", "fa-adjust", {
-                  "flip-horizontally": layerConfiguration.isInverted,
-                })}
+            />
+          </Col>
+          <Col span={SETTING_VALUE_SPAN}>
+            <FastTooltip title="Invert the color of this layer.">
+              <div
+                onClick={() =>
+                  this.props.onChangeLayer(
+                    layerName,
+                    "isInverted",
+                    layerConfiguration ? !layerConfiguration.isInverted : false,
+                  )
+                }
                 style={{
-                  margin: 0,
-                  transition: "transform 0.5s ease 0s",
-                  color: layerConfiguration.isInverted
-                    ? "var(--ant-color-primary)"
-                    : "var(--ant-color-text-secondary)",
+                  top: 4,
+                  right: 0,
+                  marginTop: 0,
+                  marginLeft: 10,
+                  display: "inline-flex",
                 }}
-              />
-            </div>
-          </Tooltip>
-        </Col>
-      </Row>
-    </div>
-  );
+              >
+                <i
+                  className={classnames("fas", "fa-adjust", {
+                    "flip-horizontally": layerConfiguration.isInverted,
+                  })}
+                  style={{
+                    margin: 0,
+                    transition: "transform 0.5s ease 0s",
+                    color: layerConfiguration.isInverted
+                      ? "var(--ant-color-primary)"
+                      : "var(--ant-color-text-secondary)",
+                  }}
+                />
+              </div>
+            </FastTooltip>
+          </Col>
+        </Row>
+      </div>
+    );
+  };
 
   getSegmentationSpecificSettings = (layerName: string) => {
     const segmentationOpacitySetting = (
@@ -909,6 +928,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
         step={1}
         value={this.props.datasetConfiguration.segmentationPatternOpacity}
         onChange={_.partial(this.props.onChange, "segmentationPatternOpacity")}
+        defaultValue={defaultDatasetViewConfigurationWithoutNull.segmentationPatternOpacity}
       />
     );
     return (
@@ -932,22 +952,48 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
     isLastLayer: boolean;
     hasLessThanTwoColorLayers?: boolean;
   }) => {
+    const { setNodeRef, transform, transition, isDragging } = useSortable({ id: layerName });
+
     // Ensure that every layer needs a layer configuration and that color layers have a color layer.
     if (!layerConfiguration || (isColorLayer && !layerConfiguration.color)) {
       return null;
     }
     const elementClass = getElementClass(this.props.dataset, layerName);
     const { isDisabled, isInEditMode } = layerConfiguration;
-    const lastLayerMarginBottom = isLastLayer ? { marginBottom: 30 } : {};
+// <<<<<<< HEAD
+//     const lastLayerMarginBottom = isLastLayer ? { marginBottom: 30 } : {};
+//     const betweenLayersMarginBottom = isLastLayer ? {} : { marginBottom: 30 };
+//     return (
+//       <div key={layerName} style={lastLayerMarginBottom}>
+// =======
     const betweenLayersMarginBottom = isLastLayer ? {} : { marginBottom: 30 };
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      zIndex: isDragging ? "100" : "auto",
+      opacity: isDragging ? 0.3 : 1,
+      marginBottom: isLastLayer ? 30 : 0,
+    };
+
+    const opacityLabel =
+      layerConfiguration.alpha === 0 ? (
+        <FastTooltip title="The current opacity is zero">
+          Opacity <WarningOutlined style={{ color: "orange" }} />
+        </FastTooltip>
+      ) : (
+        "Opacity"
+      );
+
+    const defaultLayerViewConfig = getDefaultLayerViewConfiguration();
+
     return (
-      <div key={layerName} style={lastLayerMarginBottom}>
+      <div key={layerName} style={style} ref={setNodeRef}>
         {this.getLayerSettingsHeader(
           isDisabled,
           isColorLayer,
           isInEditMode,
           layerName,
-          elementClass,
           layerConfiguration,
           hasLessThanTwoColorLayers,
         )}
@@ -962,11 +1008,12 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
               ? this.getHistogram(layerName, layerConfiguration)
               : null}
             <NumberSliderSetting
-              label="Opacity"
+              label={opacityLabel}
               min={0}
               max={100}
               value={layerConfiguration.alpha}
               onChange={_.partial(this.props.onChangeLayer, layerName, "alpha")}
+              defaultValue={defaultLayerViewConfig.alpha}
             />
             {isColorLayer
               ? this.getColorLayerSpecificSettings(layerConfiguration, layerName)
@@ -976,8 +1023,6 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
       </div>
     );
   };
-
-  SortableLayerSettings = SortableElement(this.LayerSettings);
 
   handleFindData = async (
     layerName: string,
@@ -1103,7 +1148,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
     }
 
     return (
-      <Tooltip title="Open Dialog to Downsample Volume Data">
+      <FastTooltip title="Open Dialog to Downsample Volume Data">
         <LinkButton onClick={() => this.showDownsampleVolumeModal(volumeTracing)}>
           <img
             src="/assets/images/icon-downsampling.svg"
@@ -1118,7 +1163,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
             alt="Resolution Icon"
           />
         </LinkButton>
-      </Tooltip>
+      </FastTooltip>
     );
   };
 
@@ -1135,9 +1180,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
     const skeletonTracing = enforceSkeletonTracing(tracing);
     const isOnlyAnnotationLayer = tracing.annotationLayers.length === 1;
     const { showSkeletons } = skeletonTracing;
-    const activeNodeRadius = getActiveNode(skeletonTracing)
-      .map((activeNode) => activeNode.radius)
-      .getOrElse(0);
+    const activeNodeRadius = getActiveNode(skeletonTracing)?.radius ?? 0;
     return (
       <React.Fragment>
         <div
@@ -1146,14 +1189,14 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
             paddingRight: 1,
           }}
         >
-          <DummyDragHandle layerType="Skeleton" />
+          <DummyDragHandle tooltipTitle="Layer not movable: Skeleton layers are always rendered on top." />
           <div
             className="flex-item"
             style={{
               marginRight: 8,
             }}
           >
-            <Tooltip
+            <FastTooltip
               title={showSkeletons ? "Hide skeleton layer" : "Show skeleton layer"}
               placement="top"
             >
@@ -1170,7 +1213,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
                   checked={showSkeletons}
                 />
               </div>
-            </Tooltip>
+            </FastTooltip>
             <span
               style={{
                 fontWeight: 700,
@@ -1204,6 +1247,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
               value={activeNodeRadius}
               onChange={onChangeRadius}
               disabled={userConfiguration.overrideNodeRadius || activeNodeRadius === 0}
+              defaultValue={Constants.DEFAULT_NODE_RADIUS}
             />
             <NumberSliderSetting
               label={
@@ -1216,6 +1260,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
               step={0.1}
               value={userConfiguration.particleSize}
               onChange={this.onChangeUser.particleSize}
+              defaultValue={defaultState.userConfiguration.particleSize}
             />
             {this.props.isArbitraryMode ? (
               <NumberSliderSetting
@@ -1224,6 +1269,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
                 max={userSettings.clippingDistanceArbitrary.maximum}
                 value={userConfiguration.clippingDistanceArbitrary}
                 onChange={this.onChangeUser.clippingDistanceArbitrary}
+                defaultValue={defaultState.userConfiguration.clippingDistanceArbitrary}
               />
             ) : (
               <LogSliderSetting
@@ -1233,6 +1279,7 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
                 max={userSettings.clippingDistance.maximum}
                 value={userConfiguration.clippingDistance}
                 onChange={this.onChangeUser.clippingDistance}
+                defaultValue={defaultState.userConfiguration.clippingDistance}
               />
             )}
             <SwitchSetting
@@ -1328,9 +1375,9 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
             return field.description ? (
               <>
                 {field.name}{" "}
-                <Tooltip title={field.description}>
+                <FastTooltip title={field.description} key={`tooltip_${field.name}`}>
                   <InfoCircleOutlined style={{ color: "gray", marginRight: 0 }} />
-                </Tooltip>
+                </FastTooltip>
                 {delimiter}
               </>
             ) : (
@@ -1390,25 +1437,32 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
     });
   };
 
-  onSortLayerSettingsEnd = ({ oldIndex, newIndex }: { oldIndex: number; newIndex: number }) => {
+  onSortLayerSettingsEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
     // Fix for having a grabbing cursor during dragging from https://github.com/clauderic/react-sortable-hoc/issues/328#issuecomment-1005835670.
     document.body.classList.remove("is-dragging");
     const { colorLayerOrder } = this.props.datasetConfiguration;
-    const movedElement = colorLayerOrder[oldIndex];
-    newIndex = Math.min(newIndex, colorLayerOrder.length - 1);
-    const newLayerOrder = update(colorLayerOrder, {
-      $splice: [
-        [oldIndex, 1],
-        [newIndex, 0, movedElement],
-      ],
-    });
-    this.props.onChange("colorLayerOrder", newLayerOrder);
+
+    if (over) {
+      const oldIndex = colorLayerOrder.indexOf(active.id as string);
+      const newIndex = colorLayerOrder.indexOf(over.id as string);
+      const movedElement = colorLayerOrder[oldIndex];
+
+      const newIndexClipped = Math.min(newIndex, colorLayerOrder.length - 1);
+      const newLayerOrder = update(colorLayerOrder, {
+        $splice: [
+          [oldIndex, 1],
+          [newIndexClipped, 0, movedElement],
+        ],
+      });
+      this.props.onChange("colorLayerOrder", newLayerOrder);
+    }
   };
 
   render() {
     const { layers, colorLayerOrder } = this.props.datasetConfiguration;
     const LayerSettings = this.LayerSettings;
-    const SortableLayerSettings = this.SortableLayerSettings;
 
     const segmentationLayerNames = Object.keys(layers).filter(
       (layerName) => !getIsColorLayer(this.props.dataset, layerName),
@@ -1416,14 +1470,12 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
     const hasLessThanTwoColorLayers = colorLayerOrder.length < 2;
     const colorLayerSettings = colorLayerOrder.map((layerName, index) => {
       return (
-        <SortableLayerSettings
+        <LayerSettings
           key={layerName}
           layerName={layerName}
           layerConfiguration={layers[layerName]}
           isColorLayer
-          index={index}
           isLastLayer={index === colorLayerOrder.length - 1}
-          disabled={hasLessThanTwoColorLayers}
           hasLessThanTwoColorLayers={hasLessThanTwoColorLayers}
         />
       );
@@ -1445,17 +1497,23 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
       this.props.tracing.skeleton === null &&
       this.props.tracing.annotationType === APIAnnotationTypeEnum.Explorational &&
       state.task === null;
+
     return (
       <div className="tracing-settings-menu">
-        <SortableLayerSettingsContainer
-          onSortEnd={this.onSortLayerSettingsEnd}
-          onSortStart={() =>
+        <DndContext
+          onDragEnd={this.onSortLayerSettingsEnd}
+          onDragStart={() =>
             colorLayerOrder.length > 1 && document.body.classList.add("is-dragging")
           }
-          useDragHandle
         >
-          {colorLayerSettings}
-        </SortableLayerSettingsContainer>
+          <SortableContext
+            items={colorLayerOrder.map((layerName) => layerName)}
+            strategy={verticalListSortingStrategy}
+          >
+            {colorLayerSettings}
+          </SortableContext>
+        </DndContext>
+
         {segmentationLayerSettings}
         {this.getSkeletonLayer()}
 
@@ -1488,12 +1546,12 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
 
         {this.props.controlMode === ControlModeEnum.VIEW && this.props.isAdminOrDatasetManager ? (
           <Row justify="center" align="middle">
-            <Tooltip title="Save the current view configuration as default for all users.">
+            <FastTooltip title="Save the current view configuration as default for all users.">
               <Button onClick={this.saveViewConfigurationAsDefault}>
                 <SaveOutlined />
                 Save View Configuration as Default
               </Button>
-            </Tooltip>
+            </FastTooltip>
           </Row>
         ) : null}
 

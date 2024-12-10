@@ -216,7 +216,7 @@ jobs:
               done
               return $s
             }
-            retry sh -c 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+            retry sh -c 'echo $DOCKER_TOKEN | docker login -u $DOCKER_USER --password-stdin'
             retry docker-compose push webknossos
             retry docker-compose push webknossos-datastore
             retry docker-compose push webknossos-tracingstore

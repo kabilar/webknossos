@@ -464,31 +464,39 @@ class VolumeTracingService @Inject()(
                                     tracing: VolumeTracing,
                                     volumeDataZipFormmat: VolumeDataZipFormat,
                                     voxelSize: Option[VoxelSize],
-                                    os: OutputStream)(implicit ec: ExecutionContext, tc: TokenContext): Fox[Unit] = {
-    val volumeLayer = volumeTracingLayer(annotationId, tracingId, tracing)
-    val buckets: Iterator[NamedStream] = volumeDataZipFormmat match {
-      case VolumeDataZipFormat.wkw =>
-        new WKWBucketStreamSink(volumeLayer, tracing.fallbackLayer.nonEmpty)(
-          volumeLayer.bucketProvider.bucketStream(Some(tracing.version)),
-          tracing.mags.map(mag => vec3IntFromProto(mag)))
-      case VolumeDataZipFormat.zarr3 =>
-        new Zarr3BucketStreamSink(volumeLayer, tracing.fallbackLayer.nonEmpty)(
-          volumeLayer.bucketProvider.bucketStream(Some(tracing.version)),
-          tracing.mags.map(mag => vec3IntFromProto(mag)),
-          voxelSize)
+                                    os: OutputStream)(implicit ec: ExecutionContext): Fox[Unit] = {
+
+      try {
+        val dataLayer = volumeTracingLayer(tracingId, tracing)
+        val buckets: Iterator[NamedStream] = volumeDataZipFormmat match {
+          case VolumeDataZipFormat.wkw =>
+            new WKWBucketStreamSink(dataLayer, tracing.fallbackLayer.nonEmpty)(
+              dataLayer.bucketProvider.bucketStream(Some(tracing.version)),
+              tracing.resolutions.map(mag => vec3IntFromProto(mag)))
+          case VolumeDataZipFormat.zarr3 =>
+            new Zarr3BucketStreamSink(dataLayer, tracing.fallbackLayer.nonEmpty)(
+              dataLayer.bucketProvider.bucketStream(Some(tracing.version)),
+              tracing.resolutions.map(mag => vec3IntFromProto(mag)),
+              voxelSize)
+        }
+
+        val before = Instant.now
+        val zipResult = ZipIO.zip(buckets, os, level = Deflater.BEST_SPEED)
+
+        zipResult.onComplete {
+          case scala.util.Success(b) =>
+            logger.info(s"Zipping volume data for $tracingId took ${Instant.since(before)} ms. Result: ${b.getOrElse("No result")}")
+          case scala.util.Failure(exception) =>
+            logger.error(s"Error zipping volume data for $tracingId", exception)
+        }
+          zipResult
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        Fox.failure(s"Processing failed due to an exception: ${e.getMessage}")
+      }
     }
 
-    val before = Instant.now
-    val zipResult = ZipIO.zip(buckets, os, level = Deflater.BEST_SPEED)
-
-    zipResult.onComplete {
-      case b: scala.util.Success[Box[Unit]] =>
-        logger.info(
-          s"Zipping volume data for $tracingId took ${formatDuration(Instant.since(before))}. Result: ${b.get}")
-      case _ => ()
-    }
-    zipResult
-  }
 
   def data(annotationId: String,
            tracingId: String,

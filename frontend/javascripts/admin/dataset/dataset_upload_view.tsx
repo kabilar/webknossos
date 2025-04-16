@@ -1085,12 +1085,12 @@ class DatasetUploadView extends React.Component<PropsWithFormAndRouter, State> {
                 size="large"
                 type="primary"
                 htmlType="submit"
-                disabled={hasPricingPlanExceededStorage(this.props.organization)}
+                disabled={true}
                 style={{
                   width: "100%",
                 }}
               >
-                Upload
+                For LINC, please use the 'Add Remote Dataset' functionality
               </Button>
             </FormItem>
           </Form>

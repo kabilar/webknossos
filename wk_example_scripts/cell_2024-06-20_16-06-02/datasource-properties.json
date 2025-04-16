@@ -1,0 +1,99 @@
+{
+    "id": {
+        "name": "cell_2024-06-20_16-06-02",
+        "team": ""
+    },
+    "scale": [
+        260.0,
+        260.0,
+        290.0
+    ],
+    "dataLayers": [
+        {
+            "name": "cell_membranes",
+            "category": "color",
+            "boundingBox": {
+                "topLeft": [
+                    0,
+                    0,
+                    0
+                ],
+                "width": 256,
+                "height": 256,
+                "depth": 60
+            },
+            "elementClass": "uint16",
+            "dataFormat": "wkw",
+            "numChannels": 1,
+            "defaultViewConfiguration": {
+                "color": [
+                    17,
+                    212,
+                    17
+                ],
+                "intensityRange": [
+                    0,
+                    16000
+                ]
+            },
+            "wkwResolutions": [
+                {
+                    "cubeLength": 1024,
+                    "resolution": [
+                        1,
+                        1,
+                        1
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "nuclei",
+            "category": "color",
+            "boundingBox": {
+                "topLeft": [
+                    0,
+                    0,
+                    0
+                ],
+                "width": 256,
+                "height": 256,
+                "depth": 60
+            },
+            "elementClass": "uint16",
+            "dataFormat": "wkw",
+            "numChannels": 1,
+            "defaultViewConfiguration": {
+                "color": [
+                    212,
+                    17,
+                    17
+                ],
+                "intensityRange": [
+                    3000,
+                    30000
+                ]
+            },
+            "wkwResolutions": [
+                {
+                    "cubeLength": 1024,
+                    "resolution": [
+                        1,
+                        1,
+                        1
+                    ]
+                }
+            ]
+        }
+    ],
+    "defaultViewConfiguration": {
+        "four_bit": null,
+        "interpolation": null,
+        "render_missing_data_black": null,
+        "loading_strategy": null,
+        "segmentation_pattern_opacity": null,
+        "zoom": 0.35,
+        "position": null,
+        "rotation": null
+    }
+}

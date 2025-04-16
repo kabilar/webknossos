@@ -889,13 +889,13 @@ function TopBar({
     search
   ) : (
     <div className="pull-right">
-      <Button
-        icon={<UploadOutlined />}
-        style={marginRight}
-        onClick={() => Store.dispatch(setDropzoneModalVisibilityAction(true))}
-      >
-        Upload Annotation(s)
-      </Button>
+      {/*<Button*/}
+      {/*  icon={<UploadOutlined />}*/}
+      {/*  style={marginRight}*/}
+      {/*  onClick={() => Store.dispatch(setDropzoneModalVisibilityAction(true))}*/}
+      {/*>*/}
+      {/*  Upload Annotation(s)*/}
+      {/*</Button>*/}
       <Button onClick={toggleShowArchived} style={marginRight}>
         Show {shouldShowArchivedAnnotations ? "Open" : "Archived"} Annotations
       </Button>

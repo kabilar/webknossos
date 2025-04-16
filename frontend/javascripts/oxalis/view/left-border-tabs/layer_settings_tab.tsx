@@ -993,6 +993,12 @@ class DatasetSettings extends React.PureComponent<DatasetSettingsProps, State> {
     }
     const elementClass = getElementClass(this.props.dataset, layerName);
     const { isDisabled, isInEditMode } = layerConfiguration;
+// <<<<<<< HEAD
+//     const lastLayerMarginBottom = isLastLayer ? { marginBottom: 30 } : {};
+//     const betweenLayersMarginBottom = isLastLayer ? {} : { marginBottom: 30 };
+//     return (
+//       <div key={layerName} style={lastLayerMarginBottom}>
+// =======
     const betweenLayersMarginBottom = isLastLayer ? {} : { marginBottom: 30 };
 
     const style = {

@@ -424,23 +424,50 @@ function _SegmentListItem({
     return centeredSegmentId === segment.id;
   });
 
-  const createSegmentContextMenu = (): MenuProps => {
-    const segmentColorWithMeshOpacity: Vector4 = [
-      segmentColorRGBA[0],
-      segmentColorRGBA[1],
-      segmentColorRGBA[2],
-      mesh != null ? mesh.opacity : Constants.DEFAULT_MESH_OPACITY,
-    ];
-    return {
-      items: [
-        getLoadPrecomputedMeshMenuItem(
-          segment,
-          currentMeshFile,
-          loadPrecomputedMesh,
-          hideContextMenu,
-          visibleSegmentationLayer != null ? visibleSegmentationLayer.name : null,
-          mappingInfo,
-          activeVolumeTracing,
+  const createSegmentContextMenu = (): MenuProps => ({
+    items: [
+      getLoadPrecomputedMeshMenuItem(
+        segment,
+        currentMeshFile,
+        loadPrecomputedMesh,
+        hideContextMenu,
+        visibleSegmentationLayer != null ? visibleSegmentationLayer.name : null,
+        mappingInfo,
+      ),
+      getComputeMeshAdHocMenuItem(
+        segment,
+        loadAdHocMesh,
+        visibleSegmentationLayer != null,
+        hideContextMenu,
+      ),
+      getMakeSegmentActiveMenuItem(
+        segment,
+        setActiveCell,
+        activeCellId,
+        isEditingDisabled,
+        hideContextMenu,
+      ),
+      {
+        key: `changeSegmentColor-${segment.id}`,
+        label: (
+          <ChangeColorMenuItemContent
+            isDisabled={false}
+            title="Change Segment Color"
+            onSetColor={(color, createsNewUndoState) => {
+              if (visibleSegmentationLayer == null) {
+                return;
+              }
+              updateSegment(
+                segment.id,
+                {
+                  color,
+                },
+                visibleSegmentationLayer.name,
+                createsNewUndoState,
+              );
+            }}
+            rgb={Utils.take3(segmentColorRGBA)}
+          />
         ),
         getComputeMeshAdHocMenuItem(
           segment,

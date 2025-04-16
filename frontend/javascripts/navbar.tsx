@@ -863,7 +863,7 @@ function Navbar({
             verticalAlign: "middle",
           }}
         >
-          {getCollapsibleMenuTitle("WEBKNOSSOS", <span className="logo" />, collapseAllNavItems)}
+          {getCollapsibleMenuTitle("LINC | WEBKNOSSOS", <span className="logo" />, collapseAllNavItems)}
         </Link>
       ),
     },

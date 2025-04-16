@@ -644,18 +644,18 @@ function AddRemoteLayer({
       >
         <Input />
       </FormItem>
-      <FormItem label="Authentication">
-        <RadioGroup
-          defaultValue="hide"
-          value={showCredentialsFields ? "show" : "hide"}
-          onChange={(e) => setShowCredentialsFields(e.target.value === "show")}
-        >
-          <Radio value="hide">{selectedProtocol === "https" ? "None" : "Anonymous"}</Radio>
-          <Radio value="show">
-            {selectedProtocol === "https" ? "Basic authentication" : "With credentials"}
-          </Radio>
-        </RadioGroup>
-      </FormItem>
+      {/*<FormItem label="Authentication">*/}
+      {/*  <RadioGroup*/}
+      {/*    defaultValue="hide"*/}
+      {/*    value={showCredentialsFields ? "show" : "hide"}*/}
+      {/*    onChange={(e) => setShowCredentialsFields(e.target.value === "show")}*/}
+      {/*  >*/}
+      {/*    <Radio value="hide">{selectedProtocol === "https" ? "None" : "Anonymous"}</Radio>*/}
+      {/*    <Radio value="show">*/}
+      {/*      {selectedProtocol === "https" ? "Basic authentication" : "With credentials"}*/}
+      {/*    </Radio>*/}
+      {/*  </RadioGroup>*/}
+      {/*</FormItem>*/}
       {showCredentialsFields ? (
         selectedProtocol === "gs" ? (
           <GoogleAuthFormItem fileList={fileList} handleChange={handleChange} />

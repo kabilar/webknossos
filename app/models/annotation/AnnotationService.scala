@@ -303,6 +303,9 @@ class AnnotationService @Inject()(
       teamId <- selectSuitableTeam(user, dataset) ?~> "annotation.create.forbidden"
       annotation = Annotation(newAnnotationId, datasetId, None, teamId, user._id, annotationLayers)
       _ <- annotationDAO.insertOne(annotation)
+      teamIdValidated = List(teamId)
+      _ <- Fox.serialCombined(teamIdValidated)(teamDAO.findOne(_)) ?~> "updateSharedTeams.failed.accessingTeam"
+      _ <- this.updateTeamsForSharedAnnotation(annotation._id, teamIdValidated)
     } yield annotation
   }
 
